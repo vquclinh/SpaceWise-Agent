@@ -13,6 +13,20 @@ Bonjour ^^! this is our group repo for the CS486 database project. This README i
 
 So think of it as "the agent + its workflow + its paper trail," not just a folder of homework files.
 
+## Group (G08)
+
+| Member | Student ID |
+|---|---|
+| Truong Thi My Duyen | 24125028 |
+| Huynh Le Bao Thi | 24125080 |
+| Le Quoc Vi | 24125085 |
+| Vo Quoc Linh | 24125065 |
+
+- **Group number:** `G08` — used in every deliverable filename (e.g. `01-business-req-analysis-G08.md`).
+- **Primary tool:** OpenCode (fixed).
+- **Model/provider:** not fixed — each member may use a different one per OpenCode session. **Record the exact model/provider in every audit**, so the report can list all models we actually used.
+- **DBMS:** Microsoft SQL Server.
+
 ## 2. Big rule for the team
 
 Please follow these. They keep our grade and our history safe.
@@ -20,6 +34,7 @@ Please follow these. They keep our grade and our history safe.
 - **OpenCode + DeepSeek (or whatever you like, not just only DeepSeek) is the primary workflow.** The 7 deliverables should be generated through OpenCode, not hand-written or pasted from somewhere else.
 - **Do not silently edit outputs by hand.** If you change something, record what changed and why (an audit, or at least a clear commit message).
 - **Every meaningful AI-assisted work session must create an audit file in `audits/`.** See section 9.
+- **The model is not fixed.** Each member may pick whatever provider/model works for them in OpenCode — but you **must record the exact provider/model in that session's audit**. The report lists every model the group actually used.
 - Audits matter because the final report has to explain our **agent improvement process** — how we evaluated the agent at each step and how we improved it. The audits are the raw evidence for that.
 
 ## 3. Folder and file map
@@ -92,22 +107,22 @@ The main command:
 
 ## 5. What the 7 deliverables are
 
-These go in `outputs/`. Replace `G<Group number>` with our real group number later (for example `G01`):
+These go in `outputs/`. Our group number is `G08`, so the files are:
 
 ```text
-01-business-req-analysis-G<Group number>.md
-02-erd-design-G<Group number>.md
-03-logical-design-G<Group number>.md
-04-design-validation-G<Group number>.md
-05-db-definition-G<Group number>.sql
-06-sample-data-G<Group number>.sql
-07-query-design-G<Group number>.sql
+01-business-req-analysis-G08.md
+02-erd-design-G08.md
+03-logical-design-G08.md
+04-design-validation-G08.md
+05-db-definition-G08.sql
+06-sample-data-G08.sql
+07-query-design-G08.sql
 ```
 
 Important notes:
 
 - **Do not generate these until the team is ready.** Right now `outputs/` should only contain `.gitkeep`.
-- Use the **exact** filenames above. The group number replaces `G<Group number>` (e.g. `01-business-req-analysis-G01.md`).
+- Use the **exact** filenames above with our group number `G08`.
 - The query design file (`07-...`) must contain **at least 5 meaningful SQL queries**.
 - **Each query must include all four parts:**
   - **Business question** — what real question it answers.
@@ -133,11 +148,11 @@ If setup mode fails, something in the scaffold is missing or a deliverable was c
 
 ## 7. How to validate final deliverables later
 
-Once the 7 outputs exist, validate them for our group (replace `G<NN>` with e.g. `G01`):
+Once the 7 outputs exist, validate them for our group (`G08`):
 
 ```bash
-bash scripts/check_required_files.sh --final G<NN>
-bash scripts/validate_sql.sh --final G<NN>
+bash scripts/check_required_files.sh --final G08
+bash scripts/validate_sql.sh --final G08
 ```
 
 What to expect:
@@ -145,6 +160,17 @@ What to expect:
 - These **pass only after all 7 outputs exist** and the SQL files have real content.
 - **Before generation, final mode is *supposed* to fail** — the deliverables are intentionally missing during setup, so a FAIL there is normal, not a bug.
 - `validate_sql.sh --final` checks that `05` has `CREATE TABLE` + key/constraint evidence, `06` has `INSERT` statements, and `07` has at least 5 queries.
+
+### Database environment note (SQL Server)
+
+Our DBMS is **Microsoft SQL Server**. The DDL (`05`), sample data (`06`), and queries (`07`) use SQL Server syntax (e.g. `IDENTITY`, `DATETIME2`, `GETDATE()`, `TOP`).
+
+> ⚠️ **Supabase is PostgreSQL-based.** Do **not** use Supabase (or any plain PostgreSQL/MySQL) as the final environment to validate our SQL — syntax and types differ and our scripts may silently behave differently. If you want to actually run the SQL, use a SQL Server-compatible environment, for example:
+> - a local SQL Server instance, or
+> - a SQL Server container (e.g. the official `mcr.microsoft.com/mssql/server` Docker image), or
+> - a cloud SQL Server service such as **Azure SQL Database**.
+>
+> Postgres tools are fine for casual experimenting, but the deliverables must target SQL Server.
 
 ## 8. How the team should work from now on
 
@@ -159,7 +185,7 @@ A simple loop for any work session:
    ```
 4. **Do the work** with `/design-db` or a targeted prompt (e.g. "regenerate only `outputs/03-...`").
 5. **Ask the agent to create an audit** for the change (see section 9).
-6. **Run validation scripts** (`--setup` now, `--final G<NN>` after generation).
+6. **Run validation scripts** (`--setup` now, `--final G08` after generation).
 7. **Review the diff** before committing — actually read what changed.
 8. **Commit with a clear message.**
 9. **Push.**
@@ -220,7 +246,7 @@ Example:
 
 - **Problem:** the query file has SQL but no business questions.
 - **Fix:** strengthen Step 7 in the pipeline skill so every query must include the 4 parts.
-- **Rerun:** regenerate `07-query-design-G<NN>.sql`.
+- **Rerun:** regenerate `07-query-design-G08.sql`.
 - **Audit:** record the issue, the refinement, and the result.
 
 (This exact pattern already happened during setup — see the audits — so it's a real, reportable example.)
@@ -231,17 +257,17 @@ Example:
 - **Never paste API keys** into files or audits. Keep secrets out of Git entirely.
 - **Don't commit `.env` or local OpenCode state** (the `.gitignore` already covers these, but stay careful).
 - **Review diffs before commit** — don't blind-commit agent output.
-- **Don't let the agent invent the group number or student names.** Those stay as `GXX` placeholders until a human fills them in.
+- **Don't let the agent invent student names.** The group number is fixed (`G08`); names are already set in `AGENT.md` — don't let the agent make up new ones.
 - Prefer regenerating **one file** over redoing everything — cheaper and easier to review.
 
 ## 12. Before submission checklist
 
-- [ ] Fill the real **group number** and **member names** in `AGENT.md`.
-- [ ] Confirm the **model/provider** we actually used is correct in `AGENT.md`.
+- [x] **Group number** (`G08`) and **member names/IDs** filled in `AGENT.md`.
+- [ ] Confirm the **model(s)/provider(s)** actually used are listed (gathered from the audits) for the report.
 - [ ] Run final validation:
-      `bash scripts/check_required_files.sh --final G<NN>` and `bash scripts/validate_sql.sh --final G<NN>`.
-- [ ] Make sure `outputs/` has **exactly the 7 required deliverables** (correct names, real content).
-- [ ] Make sure the **report PDF** includes member info, the LLM model(s) used, and the agent improvement process.
+      `bash scripts/check_required_files.sh --final G08` and `bash scripts/validate_sql.sh --final G08`.
+- [ ] Make sure `outputs/` has **exactly the 7 required deliverables** (correct `G08` names, real content).
+- [ ] Make sure the **report PDF** includes member info, **all** LLM model(s) used, and the agent improvement process.
 - [ ] Make sure `audits/` has **enough history** to support the report's improvement section.
 - [ ] Check `git status` is **clean** before final submission.
 

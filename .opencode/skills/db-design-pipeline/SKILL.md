@@ -25,21 +25,21 @@ Read these and prefer them in this order when details conflict:
 2. `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` — detailed specification (entities, attributes, relationships, business rules, validation logic, example queries).
 3. The requirement file passed by the user (usually `req/business-requirement.md`).
 
-Write all content in English only. Do not invent the group number or student names; keep `GXX` until the group sets it.
+Write all content in English only. Do not invent student names. The group number is `G08`; use it in all output filenames.
 
 ## Required Output Files
 
 Create or update the following files in `outputs/`:
 
-1. `outputs/01-business-req-analysis-GXX.md`
-2. `outputs/02-erd-design-GXX.md`
-3. `outputs/03-logical-design-GXX.md`
-4. `outputs/04-design-validation-GXX.md`
-5. `outputs/05-db-definition-GXX.sql`
-6. `outputs/06-sample-data-GXX.sql`
-7. `outputs/07-query-design-GXX.sql`
+1. `outputs/01-business-req-analysis-G08.md`
+2. `outputs/02-erd-design-G08.md`
+3. `outputs/03-logical-design-G08.md`
+4. `outputs/04-design-validation-G08.md`
+5. `outputs/05-db-definition-G08.sql`
+6. `outputs/06-sample-data-G08.sql`
+7. `outputs/07-query-design-G08.sql`
 
-Replace `GXX` with the group number (e.g., `G01`).
+The group number is `G08`; use it in all output filenames.
 
 Do not skip any file.
 
@@ -68,7 +68,7 @@ Critical business rules that the design MUST enforce:
 
 Save to:
 
-`outputs/01-business-req-analysis-GXX.md`
+`outputs/01-business-req-analysis-G08.md`
 
 The document must include:
 
@@ -89,7 +89,7 @@ The ERD must be based on Step 1.
 
 Save to:
 
-`outputs/02-erd-design-GXX.md`
+`outputs/02-erd-design-G08.md`
 
 The document must include:
 
@@ -108,7 +108,7 @@ The logical design must be based on Step 2.
 
 Save to:
 
-`outputs/03-logical-design-GXX.md`
+`outputs/03-logical-design-G08.md`
 
 The document must include:
 
@@ -127,7 +127,7 @@ The validation must be based on Step 3.
 
 Save to:
 
-`outputs/04-design-validation-GXX.md`
+`outputs/04-design-validation-G08.md`
 
 The document must include:
 
@@ -147,7 +147,7 @@ The DDL must be based on Step 3.
 
 Save to:
 
-`outputs/05-db-definition-GXX.sql`
+`outputs/05-db-definition-G08.sql`
 
 The file must include:
 
@@ -170,7 +170,7 @@ The sample data must be based on the DDL from Step 5.
 
 Save to:
 
-`outputs/06-sample-data-GXX.sql`
+`outputs/06-sample-data-G08.sql`
 
 The file must include `INSERT INTO` statements covering normal and exceptional cases:
 
@@ -192,7 +192,7 @@ The query design must be based on the DDL and sample data from prior steps.
 
 Save to:
 
-`outputs/07-query-design-GXX.sql`
+`outputs/07-query-design-G08.sql`
 
 This file must contain **at least 5** meaningful SQL queries that are valid for the database and useful for answering business questions in this context.
 

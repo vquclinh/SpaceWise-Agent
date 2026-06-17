@@ -33,13 +33,13 @@ Do not jump directly to DDL. The documents from the prior steps should be follow
 
 All outputs go to the `outputs/` directory with the naming convention `NN-artifact-name-G<GroupNumber>.ext`:
 
-1. `outputs/01-business-req-analysis-GXX.md`
-2. `outputs/02-erd-design-GXX.md`
-3. `outputs/03-logical-design-GXX.md`
-4. `outputs/04-design-validation-GXX.md`
-5. `outputs/05-db-definition-GXX.sql`
-6. `outputs/06-sample-data-GXX.sql`
-7. `outputs/07-query-design-GXX.sql`
+1. `outputs/01-business-req-analysis-G08.md`
+2. `outputs/02-erd-design-G08.md`
+3. `outputs/03-logical-design-G08.md`
+4. `outputs/04-design-validation-G08.md`
+5. `outputs/05-db-definition-G08.sql`
+6. `outputs/06-sample-data-G08.sql`
+7. `outputs/07-query-design-G08.sql`
 
 ## DBMS
 
@@ -52,13 +52,13 @@ Use Microsoft SQL Server unless the user specifies another DBMS.
 - Preserve traceability from requirement -> entity -> relationship -> table -> constraint.
 - Use Mermaid `erDiagram` for ERD.
 - Do not silently invent business rules.
-- Do not invent the group number or student names. Leave `GXX` as a placeholder until the group fills it in.
+- Do not invent student names. The group number is `G08`; use it in all output filenames.
 - Step 7 (Query Design) must contain at least 5 queries, and each query must include: Business question, Target user(s), Why this query is useful, and the SQL statement.
 - Write all generated content in English only.
 
 ## Agent Tooling Note
 
-The primary project agent is OpenCode with DeepSeek. Other agents (e.g. Claude Code) may be used only for auxiliary setup review and fixes, not for generating the 7 deliverables.
+The primary project tool is OpenCode. The provider/model is chosen per session (each member may use a different one) and is **not** fixed globally; every audit must record the exact provider/model used in that session. Other agents (e.g. Claude Code) may be used only for auxiliary review and fixes, not for generating the 7 deliverables.
 
 ## Critical Business Rules
 
