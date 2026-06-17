@@ -1,157 +1,98 @@
-# SpaceWise Agent
+# SpaceWise Agent — CS486 Campus Space Management System
 
-Database Design Agent project for CS486 — Introduction to Database Systems.
+Bonjour ^^! this is our group repo for the CS486 database project. This README is the practical guide for how we work here. Read sections 2 and 9 at minimum before you touch anything.
 
-The agent reads a business requirement and generates database design artifacts from requirement analysis to SQL query design for the Campus Space Management System.
+- This is our **group agent repository** for CS486 (Introduction to Database System).
+- The project is the **Campus Space Management System**: a database to manage booking, approval, usage, and maintenance of shared campus spaces.
+- This repo is **not just the final answers.** It holds the whole working setup:
+  - the OpenCode agent rules, commands, and skill (the "brain" that designs the database),
+  - the requirement and spec inputs,
+  - validation scripts,
+  - audit history (our memory of what we did and why),
+  - and `outputs/`, where the 7 final deliverables will go later.
 
-## 1. Install OpenCode
+So think of it as "the agent + its workflow + its paper trail," not just a folder of homework files.
 
-OpenCode installation guide: [https://opencode.ai/docs/](https://opencode.ai/docs/)
+## 2. Big rule for the team
 
-After installation, open the project folder and start OpenCode:
+Please follow these. They keep our grade and our history safe.
 
-```bash
-cd <your-project-folder>
-opencode
-```
+- **OpenCode + DeepSeek (or whatever you like, not just only DeepSeek) is the primary workflow.** The 7 deliverables should be generated through OpenCode, not hand-written or pasted from somewhere else.
+- **Do not silently edit outputs by hand.** If you change something, record what changed and why (an audit, or at least a clear commit message).
+- **Every meaningful AI-assisted work session must create an audit file in `audits/`.** See section 9.
+- Audits matter because the final report has to explain our **agent improvement process** — how we evaluated the agent at each step and how we improved it. The audits are the raw evidence for that.
 
-During setup, choose the LLM provider and model that your group will use.
-
-> Do not commit API keys, access tokens, or private credentials to Git.
-
----
-
-### Connect OpenCode to an LLM Model
-
-After installing OpenCode, each group must connect OpenCode to at least one LLM provider before running the database design agent.
-
-OpenCode provider guide: [https://opencode.ai/docs/providers/](https://opencode.ai/docs/providers/)
-OpenCode model guide: [https://opencode.ai/docs/models/](https://opencode.ai/docs/models/)
-
-#### Step 1: Start OpenCode
-
-Open the project folder in the terminal:
-
-```bash
-cd <your-project-folder>
-opencode
-```
-
-#### Step 2: Connect an LLM Provider
-
-Inside OpenCode, run:
-
-```text
-/connect
-```
-
-Then select the LLM provider that your group wants to use, such as DeepSeek, OpenAI, Anthropic, Gemini, OpenRouter, OpenCode Zen, or another supported provider.
-
-When requested, enter the API key or login information for the selected provider.
-
-> Do not commit API keys, access tokens, or private credentials to Git.
-
-#### Step 3: Select an LLM Model
-
-After connecting the provider, run:
-
-```text
-/models
-```
-
-Choose the model that your group wants to use for the project.
-
-## 2. Project Goal
-
-The agent must read the business requirement and generate the following database design artifacts:
-
-1. Business Requirement Analysis
-2. Conceptual Database Design
-3. Logical Database Design
-4. Database Design Validation
-5. Database Implementation
-6. Sample Data Preparation
-7. Query Design
-
-The group must also evaluate and improve the agent during the development process.
-
-> **Agent roles:** OpenCode + DeepSeek is the primary agent that generates the 7 deliverables. Other agents (e.g. Claude Code) were used only for auxiliary setup review and fixes, documented under `audits/`.
-
----
-
-## 3. Project Structure
+## 3. Folder and file map
 
 ```text
 .
 ├── .opencode/
 │   ├── commands/
-│   │   └── design-db.md
+│   │   └── design-db.md                 # the /design-db command
 │   └── skills/
 │       └── db-design-pipeline/
-│           ├── templates/
-│           └── SKILL.md
+│           ├── SKILL.md                 # the 7-step DB design pipeline (the real logic)
+│           └── templates/               # optional output templates (.gitkeep keeps it tracked)
 ├── req/
-│   └── business-requirement.md
-├── outputs/
-├── audits/
+│   └── business-requirement.md          # short business requirement (main input)
+├── outputs/                             # the 7 deliverables go here LATER (now: just .gitkeep)
+├── audits/                              # our memory: review + improvement records
 ├── scripts/
-│   ├── check_required_files.sh
-│   └── validate_sql.sh
-├── AGENT.md
-├── AGENTS.md
-├── SKILL.md
-├── README.md
+│   ├── check_required_files.sh          # checks scaffold / deliverables exist
+│   └── validate_sql.sh                  # checks the SQL deliverables look valid
+├── AGENT.md                             # official CS486 manifest (group + model info)
+├── AGENTS.md                            # OpenCode project rules (the agent reads this)
+├── SKILL.md                             # official CS486 skill manifest
+├── README.md                            # this guide
 ├── .gitignore
-├── CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md
-├── CS486_Project.pdf
-└── cs486-demo-share.zip
+├── CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md  # detailed spec (source of truth for design)
+├── CS486_Project.pdf                    # official assignment PDF
+└── cs486-demo-share.zip                 # teacher's demo, reference only
 ```
 
----
+Quick "what is this for" list:
 
-## 4. Main Files and Folders
-
-| File / Folder | Purpose |
+| File / folder | What it's for |
 |---|---|
-| `AGENT.md` | Official CS486 agent manifest (group info, LLM config, references). |
-| `AGENTS.md` | Project-level instructions for the OpenCode agent (workflow, rules, outputs). |
-| `SKILL.md` | Official CS486 skill manifest listing all available skills. |
-| `.opencode/` | Stores OpenCode commands, skills, and related configuration. |
-| `.opencode/commands/design-db.md` | Defines the custom command used to run the database design pipeline. |
-| `.opencode/skills/db-design-pipeline/SKILL.md` | Defines the agent workflow, rules, design steps, and output requirements. |
-| `.opencode/skills/db-design-pipeline/templates/` | Stores templates used by the agent to generate consistent outputs. |
-| `req/business-requirement.md` | Contains the input business requirement. |
-| `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` | Full project specification with additional detail. |
-| `outputs/` | Stores all generated project artifacts. |
-| `audits/` | Records the agent improvement and evaluation process. |
-| `scripts/check_required_files.sh` | Verifies all 7 required output files exist. |
-| `scripts/validate_sql.sh` | Runs basic validation on generated SQL files. |
-| `.gitignore` | Excludes private or unnecessary files from Git. |
+| `AGENT.md` | Official CS486 manifest. Group number, members, and which LLM model we used. **You must fill the real values here before submission.** |
+| `AGENTS.md` | The project rules OpenCode reads automatically: workflow order, output names, DBMS, design rules, critical business rules. |
+| `SKILL.md` | Official CS486 skill manifest. A short list pointing to our pipeline skill. |
+| `.opencode/commands/design-db.md` | Defines the `/design-db` command — the one command that runs the whole pipeline. |
+| `.opencode/skills/db-design-pipeline/SKILL.md` | The actual brain: the detailed 7-step pipeline and what each output must contain. |
+| `.opencode/skills/db-design-pipeline/templates/` | Optional place for output templates so files look consistent. Empty for now, but tracked. |
+| `req/business-requirement.md` | The condensed business requirement. Usual input to `/design-db`. |
+| `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` | The detailed spec (entities, rules, example queries). The agent uses this as the detailed source of truth. |
+| `CS486_Project.pdf` | The official assignment. Final word if anything conflicts. |
+| `outputs/` | Where the 7 deliverables live later. Right now it must stay empty except `.gitkeep`. |
+| `audits/` | Our improvement/evaluation history. One audit per meaningful session. |
+| `scripts/check_required_files.sh` | Confirms the scaffold (setup) or all 7 deliverables (final) exist. |
+| `scripts/validate_sql.sh` | Confirms the SQL files have real content (CREATE TABLE / INSERT / ≥5 queries). |
+| `cs486-demo-share.zip` | The teacher's example layout. Reference only — we don't copy it blindly. |
+| `README.md` | This file. |
 
----
+## 4. How the OpenCode workflow works
 
-## 5. How to Run the Agent
+Here's the chain, start to finish:
 
-Open the project folder:
+1. **OpenCode reads `AGENTS.md`** on its own — that's the project-level rule book (workflow order, output names, business rules).
+2. **You run `/design-db`**, which is defined in `.opencode/commands/design-db.md`.
+3. **That command loads the skill** at `.opencode/skills/db-design-pipeline/SKILL.md`.
+4. **The skill defines the 7-step database design pipeline** and exactly what each output file must contain.
+5. The command tells the agent to **read `req/business-requirement.md` plus the spec and the PDF** as sources of truth.
+6. The agent then **generates the 7 files in `outputs/`** — but **later, when the team is ready**, not during setup.
+7. After it generates or fixes anything, the agent should **create an audit** in `audits/`.
 
-```bash
-cd <your-project-folder>
-opencode
-```
-
-Run the custom command:
+The main command:
 
 ```text
 /design-db req/business-requirement.md
 ```
 
-If your group uses a different command name, update this README with the correct command.
+(Open OpenCode in the repo root first — see section 8.)
 
----
+## 5. What the 7 deliverables are
 
-## 6. Required Output Artifacts
-
-The `outputs/` folder must contain the following files:
+These go in `outputs/`. Replace `G<Group number>` with our real group number later (for example `G01`):
 
 ```text
 01-business-req-analysis-G<Group number>.md
@@ -163,84 +104,147 @@ The `outputs/` folder must contain the following files:
 07-query-design-G<Group number>.sql
 ```
 
-Example for Group 01:
+Important notes:
 
-```text
-01-business-req-analysis-G01.md
-02-erd-design-G01.md
-03-logical-design-G01.md
-04-design-validation-G01.md
-05-db-definition-G01.sql
-06-sample-data-G01.sql
-07-query-design-G01.sql
-```
+- **Do not generate these until the team is ready.** Right now `outputs/` should only contain `.gitkeep`.
+- Use the **exact** filenames above. The group number replaces `G<Group number>` (e.g. `01-business-req-analysis-G01.md`).
+- The query design file (`07-...`) must contain **at least 5 meaningful SQL queries**.
+- **Each query must include all four parts:**
+  - **Business question** — what real question it answers.
+  - **Target user(s)** — who would use it (e.g. facility staff, manager).
+  - **Why this query is useful** — a short reason.
+  - **SQL statement** — the actual SQL.
 
----
+## 6. How to run setup validation now
 
-## 7. Validation Scripts
-
-Both scripts support a `--setup` mode (default) and a `--final <GROUP>` mode. They are read-only and do not require a database.
-
-At setup stage, confirm the scaffold is correct and no deliverables exist yet:
+At this stage, just confirm the scaffold is correct and no deliverables exist yet:
 
 ```bash
 bash scripts/check_required_files.sh --setup
 bash scripts/validate_sql.sh --setup
 ```
 
-After deliverables are generated, validate them for your group (e.g. `G01`):
+Expected result right now:
+
+- Both should **PASS**.
+- `outputs/` should contain **only `.gitkeep`** (no deliverable files yet).
+
+If setup mode fails, something in the scaffold is missing or a deliverable was created too early — check the script output.
+
+## 7. How to validate final deliverables later
+
+Once the 7 outputs exist, validate them for our group (replace `G<NN>` with e.g. `G01`):
 
 ```bash
-bash scripts/check_required_files.sh --final G01
-bash scripts/validate_sql.sh --final G01
+bash scripts/check_required_files.sh --final G<NN>
+bash scripts/validate_sql.sh --final G<NN>
 ```
 
-`validate_sql.sh --final` checks that file 05 has `CREATE TABLE` plus key/constraint evidence, file 06 has `INSERT` statements, and file 07 has at least 5 queries.
+What to expect:
+
+- These **pass only after all 7 outputs exist** and the SQL files have real content.
+- **Before generation, final mode is *supposed* to fail** — the deliverables are intentionally missing during setup, so a FAIL there is normal, not a bug.
+- `validate_sql.sh --final` checks that `05` has `CREATE TABLE` + key/constraint evidence, `06` has `INSERT` statements, and `07` has at least 5 queries.
+
+## 8. How the team should work from now on
+
+A simple loop for any work session:
+
+1. **Pull latest:** `git pull`
+2. **Check status/branch:** `git status --short` (know what's changed and where you are).
+3. **Open OpenCode in the repo root:**
+   ```bash
+   cd <your-project-folder>
+   opencode
+   ```
+4. **Do the work** with `/design-db` or a targeted prompt (e.g. "regenerate only `outputs/03-...`").
+5. **Ask the agent to create an audit** for the change (see section 9).
+6. **Run validation scripts** (`--setup` now, `--final G<NN>` after generation).
+7. **Review the diff** before committing — actually read what changed.
+8. **Commit with a clear message.**
+9. **Push.**
+
+Example commit messages:
+
+```text
+setup: improve OpenCode workflow docs
+agent: refine db design pipeline rules
+outputs: generate initial CS486 deliverables
+validation: fix SQL sample data issues
+audit: record generation review
+```
+
+## 9. Audit rule — very important
+
+**`audits/` is our memory. Do not skip it.**
+
+After *every* OpenCode / Claude / ChatGPT-assisted change, create an audit file in `audits/` (next number in sequence, e.g. `audits/05-...md`).
+
+The audit should clearly say:
+
+- **What task** was done.
+- **Which tool/model** was used (e.g. OpenCode + DeepSeek, or Claude for review).
+- **What files changed.**
+- **What validation** was run (and the result).
+- **What issues** were found.
+- **What got improved.**
+- **What is still risky** or unfinished.
+- **Next steps.**
+- A short **git status summary**.
+
+Why we care: these audits become the raw material for the report's **"agent improvement process"** section. If we skip them, we'll have nothing concrete to write about how we evaluated and improved the agent.
+
+Reusable snippet — paste this into OpenCode/Claude at the end of a task:
+
+```text
+After completing the task, create an audit Markdown file in audits/.
+The audit must summarize: task goal, tool/model used, files changed, validation run,
+issues found, improvements made, risks/caveats, git status, and recommended next steps.
+Do not generate unrelated files.
+```
+
+## 10. How to improve the agent/skill later
+
+When an output is bad, **don't just hand-patch the final file.** That hides the real problem and we learn nothing for the report.
+
+Instead, first ask: *was this caused by weak rules somewhere?*
+
+- `AGENTS.md` (project rules)
+- `SKILL.md` (manifest)
+- `.opencode/commands/design-db.md` (the command)
+- `.opencode/skills/db-design-pipeline/SKILL.md` (the pipeline)
+
+If yes, **improve the instruction/skill first**, then rerun or regenerate the affected file. *That* is the real agent improvement process.
+
+Example:
+
+- **Problem:** the query file has SQL but no business questions.
+- **Fix:** strengthen Step 7 in the pipeline skill so every query must include the 4 parts.
+- **Rerun:** regenerate `07-query-design-G<NN>.sql`.
+- **Audit:** record the issue, the refinement, and the result.
+
+(This exact pattern already happened during setup — see the audits — so it's a real, reportable example.)
+
+## 11. Cost and safety notes
+
+- **Don't use max reasoning for every small task.** Use medium/high for normal work; save max for hard reviews or tricky validation.
+- **Never paste API keys** into files or audits. Keep secrets out of Git entirely.
+- **Don't commit `.env` or local OpenCode state** (the `.gitignore` already covers these, but stay careful).
+- **Review diffs before commit** — don't blind-commit agent output.
+- **Don't let the agent invent the group number or student names.** Those stay as `GXX` placeholders until a human fills them in.
+- Prefer regenerating **one file** over redoing everything — cheaper and easier to review.
+
+## 12. Before submission checklist
+
+- [ ] Fill the real **group number** and **member names** in `AGENT.md`.
+- [ ] Confirm the **model/provider** we actually used is correct in `AGENT.md`.
+- [ ] Run final validation:
+      `bash scripts/check_required_files.sh --final G<NN>` and `bash scripts/validate_sql.sh --final G<NN>`.
+- [ ] Make sure `outputs/` has **exactly the 7 required deliverables** (correct names, real content).
+- [ ] Make sure the **report PDF** includes member info, the LLM model(s) used, and the agent improvement process.
+- [ ] Make sure `audits/` has **enough history** to support the report's improvement section.
+- [ ] Check `git status` is **clean** before final submission.
 
 ---
 
-## 8. Notes on LLM Model Usage and Cost Control
-
-Using LLM models may consume tokens and API credits. To avoid unnecessary cost:
-
-- Use a cheaper or faster model for early drafts.
-- Use a stronger model only for difficult reasoning, validation, and final review.
-- Do not repeatedly regenerate all files from scratch.
-- Ask the agent to update only the specific file or section that needs improvement.
-- Keep prompts short, clear, and specific.
-- Avoid sending unnecessary files such as `node_modules/`, `.git/`, logs, or large temporary files.
-- Stop the agent if it loops or repeatedly produces similar outputs.
-- Never commit API keys or tokens to Git.
-
-Good prompt example:
-
-```text
-Read req/business-requirement.md and generate only outputs/01-business-req-analysis-G01.md.
-```
-
-Better than:
-
-```text
-Read the whole project and redo everything.
-```
-
-Another good prompt example:
-
-```text
-Use outputs/02-erd-design-G01.md to generate only outputs/03-logical-design-G01.md. Do not modify other files.
-```
-
----
-
-## 9. Academic Integrity
-
-Students may use AI tools to support the project, but they are responsible for reviewing, evaluating, and improving the generated outputs.
-
-Do not submit raw AI output without understanding or validation.
-
-Each group must be able to explain:
-
-- How the agent was configured.
-- How the agent was improved.
-- Why the final database design is valid.
-- How the SQL scripts and queries work.
+Happy designing. When in doubt: run through OpenCode, validate, and write an audit. 🚀
