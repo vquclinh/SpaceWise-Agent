@@ -1,0 +1,42 @@
+# Environment
+.env
+.env.*
+*.local
+
+# API keys and credentials
+*_api_key*
+*_token*
+*_secret*
+credentials.*
+*.pem
+
+# OS files
+.DS_Store
+Thumbs.db
+__MACOSX/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build
+dist/
+build/
+
+# Logs
+*.log
+
+# OpenCode local state
+.opencode/.DS_Store

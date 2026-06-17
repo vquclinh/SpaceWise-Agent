@@ -1,8 +1,6 @@
-# SpaceWise Agent
+# Database Design Agent Project
 
-Database Design Agent project for CS486 — Introduction to Database Systems.
-
-The agent reads a business requirement and generates database design artifacts from requirement analysis to SQL query design for the Campus Space Management System.
+This project requires each group to build and improve an AI agent that reads a business requirement and generates database design artifacts from requirement analysis to SQL query design.
 
 ## 1. Install OpenCode
 
@@ -11,7 +9,7 @@ OpenCode installation guide: [https://opencode.ai/docs/](https://opencode.ai/doc
 After installation, open the project folder and start OpenCode:
 
 ```bash
-cd <your-project-folder>
+cd path/to/your/project
 opencode
 ```
 
@@ -25,7 +23,7 @@ During setup, choose the LLM provider and model that your group will use.
 
 After installing OpenCode, each group must connect OpenCode to at least one LLM provider before running the database design agent.
 
-OpenCode provider guide: [https://opencode.ai/docs/providers/](https://opencode.ai/docs/providers/)
+OpenCode provider guide: [https://opencode.ai/docs/providers/](https://opencode.ai/docs/providers/)  
 OpenCode model guide: [https://opencode.ai/docs/models/](https://opencode.ai/docs/models/)
 
 #### Step 1: Start OpenCode
@@ -33,7 +31,7 @@ OpenCode model guide: [https://opencode.ai/docs/models/](https://opencode.ai/doc
 Open the project folder in the terminal:
 
 ```bash
-cd <your-project-folder>
+cd path/to/your/project
 opencode
 ```
 
@@ -45,7 +43,7 @@ Inside OpenCode, run:
 /connect
 ```
 
-Then select the LLM provider that your group wants to use, such as DeepSeek, OpenAI, Anthropic, Gemini, OpenRouter, OpenCode Zen, or another supported provider.
+Then select the LLM provider that your group wants to use, such as OpenAI, Anthropic, Gemini, OpenRouter, OpenCode Zen, or another supported provider.
 
 When requested, enter the API key or login information for the selected provider.
 
@@ -75,11 +73,11 @@ The agent must read the business requirement and generate the following database
 
 The group must also evaluate and improve the agent during the development process.
 
-> **Agent roles:** OpenCode + DeepSeek is the primary agent that generates the 7 deliverables. Other agents (e.g. Claude Code) were used only for auxiliary setup review and fixes, documented under `audits/`.
-
 ---
 
-## 3. Project Structure
+## 3. Demo Project Structure
+
+The demo Git repository include the following files and folders, your group could adapt it:
 
 ```text
 .
@@ -93,18 +91,9 @@ The group must also evaluate and improve the agent during the development proces
 ├── req/
 │   └── business-requirement.md
 ├── outputs/
-├── audits/
-├── scripts/
-│   ├── check_required_files.sh
-│   └── validate_sql.sh
-├── AGENT.md
 ├── AGENTS.md
-├── SKILL.md
 ├── README.md
-├── .gitignore
-├── CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md
-├── CS486_Project.pdf
-└── cs486-demo-share.zip
+└── .gitignore
 ```
 
 ---
@@ -113,19 +102,14 @@ The group must also evaluate and improve the agent during the development proces
 
 | File / Folder | Purpose |
 |---|---|
-| `AGENT.md` | Official CS486 agent manifest (group info, LLM config, references). |
-| `AGENTS.md` | Project-level instructions for the OpenCode agent (workflow, rules, outputs). |
-| `SKILL.md` | Official CS486 skill manifest listing all available skills. |
 | `.opencode/` | Stores OpenCode commands, skills, and related configuration. |
 | `.opencode/commands/design-db.md` | Defines the custom command used to run the database design pipeline. |
 | `.opencode/skills/db-design-pipeline/SKILL.md` | Defines the agent workflow, rules, design steps, and output requirements. |
 | `.opencode/skills/db-design-pipeline/templates/` | Stores templates used by the agent to generate consistent outputs. |
 | `req/business-requirement.md` | Contains the input business requirement. |
-| `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` | Full project specification with additional detail. |
 | `outputs/` | Stores all generated project artifacts. |
-| `audits/` | Records the agent improvement and evaluation process. |
-| `scripts/check_required_files.sh` | Verifies all 7 required output files exist. |
-| `scripts/validate_sql.sh` | Runs basic validation on generated SQL files. |
+| `AGENTS.md` | Contains project-level instructions for the agent. |
+| `README.md` | Explains how to install, run, and evaluate the project. |
 | `.gitignore` | Excludes private or unnecessary files from Git. |
 
 ---
@@ -135,7 +119,7 @@ The group must also evaluate and improve the agent during the development proces
 Open the project folder:
 
 ```bash
-cd <your-project-folder>
+cd path/to/your/project
 opencode
 ```
 
@@ -175,31 +159,8 @@ Example for Group 01:
 07-query-design-G01.sql
 ```
 
----
 
-## 7. Validation Scripts
-
-Both scripts support a `--setup` mode (default) and a `--final <GROUP>` mode. They are read-only and do not require a database.
-
-At setup stage, confirm the scaffold is correct and no deliverables exist yet:
-
-```bash
-bash scripts/check_required_files.sh --setup
-bash scripts/validate_sql.sh --setup
-```
-
-After deliverables are generated, validate them for your group (e.g. `G01`):
-
-```bash
-bash scripts/check_required_files.sh --final G01
-bash scripts/validate_sql.sh --final G01
-```
-
-`validate_sql.sh --final` checks that file 05 has `CREATE TABLE` plus key/constraint evidence, file 06 has `INSERT` statements, and file 07 has at least 5 queries.
-
----
-
-## 8. Notes on LLM Model Usage and Cost Control
+## 7. Notes on LLM Model Usage and Cost Control
 
 Using LLM models may consume tokens and API credits. To avoid unnecessary cost:
 
@@ -232,7 +193,7 @@ Use outputs/02-erd-design-G01.md to generate only outputs/03-logical-design-G01.
 
 ---
 
-## 9. Academic Integrity
+## 8. Academic Integrity
 
 Students may use AI tools to support the project, but they are responsible for reviewing, evaluating, and improving the generated outputs.
 
