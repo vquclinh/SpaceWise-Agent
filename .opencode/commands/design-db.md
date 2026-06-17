@@ -23,18 +23,18 @@ If a detail conflicts, prefer the official `CS486_Project.pdf`, then `CAMPUS_SPA
 ## What to do
 
 - Follow the 7-step Phase 1 pipeline defined in the skill, in order. Do not jump straight to DDL.
-- Later, generate exactly these 7 outputs in `outputs/` (replace `GXX` with the real group number):
-  1. `outputs/01-business-req-analysis-GXX.md`
-  2. `outputs/02-erd-design-GXX.md`
-  3. `outputs/03-logical-design-GXX.md`
-  4. `outputs/04-design-validation-GXX.md`
-  5. `outputs/05-db-definition-GXX.sql`
-  6. `outputs/06-sample-data-GXX.sql`
-  7. `outputs/07-query-design-GXX.sql`
+- Later, generate exactly these 7 outputs in `outputs/` (the group number is `G08`):
+  1. `outputs/01-business-req-analysis-G08.md`
+  2. `outputs/02-erd-design-G08.md`
+  3. `outputs/03-logical-design-G08.md`
+  4. `outputs/04-design-validation-G08.md`
+  5. `outputs/05-db-definition-G08.sql`
+  6. `outputs/06-sample-data-G08.sql`
+  7. `outputs/07-query-design-G08.sql`
 
 ## Rules
 
-- Do not invent the group number or student names. If the group number is unknown, keep `GXX` and tell the user to set it.
+- Do not invent student names. The group number is `G08`; use it in all output filenames.
 - Keep all generated content in English only.
 - Prefer updating a single output file when the user asks for a fix, instead of regenerating everything.
 - After a generation or validation run, record what happened in a new audit under `audits/` (steps run, evaluation, and any refinements) so the group's improvement process is documented.

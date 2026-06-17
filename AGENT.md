@@ -6,22 +6,23 @@
 |---|---|
 | Project | Campus Space Management System |
 | Course | CS486 — Introduction to Database Systems |
-| Group Number | GXX |
-| Members | STUDENT_NAME_1, STUDENT_NAME_2, ... |
+| Group Number | G08 |
+| Members | Truong Thi My Duyen — 24125028<br>Huynh Le Bao Thi — 24125080<br>Le Quoc Vi — 24125085<br>Vo Quoc Linh — 24125065 |
 
 ## LLM Configuration
 
 | Field | Value |
 |---|---|
-| Tool | OpenCode |
-| Provider | DeepSeek |
-| Model | DeepSeek V4 Pro |
+| Tool | OpenCode (fixed primary tool) |
+| Provider / Model | Not fixed globally — each member may use a different provider/model through OpenCode |
+| Per-session record | Every audit in `audits/` must record the exact provider/model used in that session |
+| DBMS | Microsoft SQL Server |
 
-> The values above are the configuration the group reports as its primary agent. Update `Group Number`, `Members`, and the LLM `Model` to match what the group actually uses before submission.
+> OpenCode is the fixed primary tool. We deliberately do **not** pin one global model: members may pick whatever provider/model works best per OpenCode session. The rule that keeps this honest is that each audit records the exact model/provider used, and the final report lists **all** models actually used across the group.
 
 ## Auxiliary Tooling
 
-OpenCode + DeepSeek is the **primary** agent that generates the 7 deliverables. Other agents (e.g. Claude Code) were used only for **auxiliary setup review and fixes** recorded under `audits/`, and not for generating any deliverable.
+OpenCode is the **primary** tool that generates the 7 deliverables. Other agents (e.g. Claude Code) may be used only for **auxiliary review and fixes** recorded under `audits/`, and not for generating any deliverable.
 
 ## Agent Instructions
 
