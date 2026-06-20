@@ -14,6 +14,8 @@ Bonjour ^^! this is our group repo for the CS486 database project. This README i
 So think of it as "the agent + its workflow + its paper trail," not just a folder of homework files.
 
 > **Current setup scope (read this):** Right now the repo is only being **set up** — preparing the OpenCode workflow and team scaffold. Vo Quoc Linh's current task is **setup only**, not generating deliverables. The 7 Phase 1 files in `outputs/` will be **generated and refined later by the group**. No frontend, backend, or deployment is part of this setup. The detailed OpenCode skill lives at `.opencode/skills/db-design-pipeline/SKILL.md`.
+> 
+> The `outputs/` directory **must remain empty except `outputs/.gitkeep`** until the team explicitly begins Phase 1 deliverable generation.
 
 ## Group (G08)
 
