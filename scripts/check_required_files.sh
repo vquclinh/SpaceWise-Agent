@@ -56,12 +56,12 @@ if [[ "$MODE" == "setup" ]]; then
   SCAFFOLD=(
     "AGENT.md"
     "AGENTS.md"
-    "SKILL.md"
     "README.md"
     "req/business-requirement.md"
     "outputs/.gitkeep"
-    ".opencode/commands/design-db.md"
     ".opencode/skills/db-design-pipeline/SKILL.md"
+    ".opencode/commands/audit-smoke-test.md"
+    "audits/AUDIT_TEMPLATE.md"
   )
 
   PROBLEMS=0

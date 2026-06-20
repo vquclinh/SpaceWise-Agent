@@ -13,6 +13,8 @@ Bonjour ^^! this is our group repo for the CS486 database project. This README i
 
 So think of it as "the agent + its workflow + its paper trail," not just a folder of homework files.
 
+> **Current setup scope (read this):** Right now the repo is only being **set up** — preparing the OpenCode workflow and team scaffold. Vo Quoc Linh's current task is **setup only**, not generating deliverables. The 7 Phase 1 files in `outputs/` will be **generated and refined later by the group**. No frontend, backend, or deployment is part of this setup. The detailed OpenCode skill lives at `.opencode/skills/db-design-pipeline/SKILL.md`.
+
 ## Group (G08)
 
 | Member | Student ID |
@@ -43,7 +45,8 @@ Please follow these. They keep our grade and our history safe.
 .
 ├── .opencode/
 │   ├── commands/
-│   │   └── design-db.md                 # the /design-db command
+│   │   ├── audit-smoke-test.md          # /audit-smoke-test — the only setup-safe command
+│   │   └── design-db.md                 # /design-db — generic example placeholder (adapt later)
 │   └── skills/
 │       └── db-design-pipeline/
 │           ├── SKILL.md                 # the 7-step DB design pipeline (the real logic)
@@ -55,9 +58,8 @@ Please follow these. They keep our grade and our history safe.
 ├── scripts/
 │   ├── check_required_files.sh          # checks scaffold / deliverables exist
 │   └── validate_sql.sh                  # checks the SQL deliverables look valid
-├── AGENT.md                             # official CS486 manifest (group + model info)
+├── AGENT.md                             # course-facing manifest (group + model info)
 ├── AGENTS.md                            # OpenCode project rules (the agent reads this)
-├── SKILL.md                             # official CS486 skill manifest
 ├── README.md                            # this guide
 ├── .gitignore
 ├── CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md  # detailed spec (source of truth for design)
@@ -69,10 +71,9 @@ Quick "what is this for" list:
 
 | File / folder | What it's for |
 |---|---|
-| `AGENT.md` | Official CS486 manifest. Group number, members, and which LLM model we used. **You must fill the real values here before submission.** |
-| `AGENTS.md` | The project rules OpenCode reads automatically: workflow order, output names, DBMS, design rules, critical business rules. |
-| `SKILL.md` | Official CS486 skill manifest. A short list pointing to our pipeline skill. |
-| `.opencode/commands/design-db.md` | Defines the `/design-db` command — the one command that runs the whole pipeline. |
+| `AGENT.md` | Official CS486 **course-facing** manifest: project, group `G08`, members/IDs, tool/model policy, DBMS, Phase 1 workflow summary, output/audit locations. |
+| `AGENTS.md` | The **agent-facing rulebook** OpenCode reads automatically: scope, source-of-truth order, editing/SQL/output rules, team workflow, **audit policy**, validation policy, git/safety, future deployment policy. |
+| `.opencode/commands/` | Setup-stage OpenCode commands: `/audit-smoke-test` (the only setup-safe command) and `/design-db` (a generic example placeholder to adapt later). Phase 1 production commands will be added by the group when they start Phase 1. |
 | `.opencode/skills/db-design-pipeline/SKILL.md` | The actual brain: the detailed 7-step pipeline and what each output must contain. |
 | `.opencode/skills/db-design-pipeline/templates/` | Optional place for output templates so files look consistent. Empty for now, but tracked. |
 | `req/business-requirement.md` | The condensed business requirement. Usual input to `/design-db`. |
@@ -97,11 +98,32 @@ Here's the chain, start to finish:
 6. The agent then **generates the 7 files in `outputs/`** — but **later, when the team is ready**, not during setup.
 7. After it generates or fixes anything, the agent should **create an audit** in `audits/`.
 
-The main command:
+### The commands (setup stage)
+
+The repo is in **setup-only** mode, so there are just two commands right now:
 
 ```text
-/design-db req/business-requirement.md
+/audit-smoke-test                      # safe rehearsal: checks the audit policy, no outputs touched
+/design-db req/business-requirement.md # generic example placeholder — for the team to adapt later
 ```
+
+- **`/audit-smoke-test`** — the only **setup-safe** command. A read-only rehearsal of the audit habit; it does not touch `outputs/`. Use it to confirm audit creation works.
+- **`/design-db`** — a generic example placeholder entry point. It does **not** generate the 7 outputs now; it points to the detailed skill so the team can adapt it later.
+
+**Phase 1 production commands** (to generate / refine / validate / SQL-test the deliverables) are intentionally **not** in the repo yet. The group will create or adapt them when they actually start Phase 1 work — that is not part of the current setup task.
+
+### Which file is which
+
+- **`AGENT.md` vs `AGENTS.md`** — `AGENT.md` is the short **course-facing** manifest (who we are, tool/model policy, workflow summary). `AGENTS.md` is the **agent-facing rulebook** OpenCode actually follows (detailed rules + audit/validation/deployment policy).
+- **The detailed OpenCode skill** is `.opencode/skills/db-design-pipeline/SKILL.md` — the **detailed, executable** 7-step pipeline with per-step quality checklists. (We follow the teacher demo layout, which keeps the skill here and does not use a root `SKILL.md`.)
+
+### Audit policy (short version)
+
+Every meaningful AI-assisted change writes an audit in `audits/` using `audits/AUDIT_TEMPLATE.md`. You don't have to retype the format — a prompt can simply say **"Follow the repository audit policy."** (full policy in `AGENTS.md` section 7). Small typo-only edits don't need an audit unless they affect workflow, deliverables, SQL, or project instructions. **These audits are the evidence source for the final report's agent improvement process.**
+
+### Phase 1 scope
+
+Phase 1 is database design + validation only. **Do not implement frontend, backend, or deployment in Phase 1** unless future requirements explicitly ask for it (see `AGENTS.md` section 10).
 
 (Open OpenCode in the repo root first — see section 8.)
 
@@ -236,7 +258,6 @@ When an output is bad, **don't just hand-patch the final file.** That hides the 
 Instead, first ask: *was this caused by weak rules somewhere?*
 
 - `AGENTS.md` (project rules)
-- `SKILL.md` (manifest)
 - `.opencode/commands/design-db.md` (the command)
 - `.opencode/skills/db-design-pipeline/SKILL.md` (the pipeline)
 

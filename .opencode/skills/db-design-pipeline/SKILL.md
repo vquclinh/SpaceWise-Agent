@@ -157,10 +157,12 @@ The file must include:
 - Columns capturing usage sessions (actual start/end time, checked-in-by staff, initial/final condition, usage notes).
 - Columns capturing maintenance records (reporter, assigned staff, problem description, start/completion time, status, result note).
 - Constraints/mechanisms that support the two critical booking rules.
-- `CREATE INDEX` statements for recommended indexes.
+- `CREATE INDEX` statements for recommended indexes (lookup/filter paths: e.g. space status, booking time range, booking status).
 - Comments explaining non-obvious constraints.
 
 Use Microsoft SQL Server syntax unless the user specifies another DBMS.
+
+**Quality checklist (Step 5):** every table has a primary key; every relationship has a foreign key; `NOT NULL` is applied where a value is mandatory; `CHECK` constraints encode enumerations/ranges (e.g. status values, end-time after start-time); `DEFAULT` values are set where useful (e.g. created timestamps, default status); indexes cover the important filter/join columns. If a rule cannot be enforced with a simple `CHECK` (notably **no overlapping approved bookings** and **cannot book unavailable spaces**), implement a SQL Server-compatible strategy — trigger logic, transaction-level validation, or documented application-layer enforcement — and explain the tradeoff in Step 4 (Design Validation).
 
 ---
 
@@ -194,22 +196,59 @@ Save to:
 
 `outputs/07-query-design-G08.sql`
 
-This file must contain **at least 5** meaningful SQL queries that are valid for the database and useful for answering business questions in this context.
+The CS486 project requires **each student** to design and execute **at least 5 meaningful SQL queries**. With 4 members, this file must contain **at least 20 queries total**, organized into one clearly labelled section **per member**, with **at least 5 queries each**:
+
+- **Truong Thi My Duyen — 24125028**
+- **Huynh Le Bao Thi — 24125080**
+- **Le Quoc Vi — 24125085**
+- **Vo Quoc Linh — 24125065**
 
 **For EACH query, include exactly these four sections (as SQL comments above the statement), in this order:**
 
 1. `-- Business question:` — the business question the query answers.
 2. `-- Target user(s):` — who would use this query (e.g. facility staff, manager, department admin).
 3. `-- Why this query is useful:` — a short explanation of its value.
-4. The SQL statement itself.
+4. The SQL statement itself (SQL Server syntax).
 
 The queries should support real operational needs for staff/manager use, for example: upcoming approved bookings, pending approvals, overlapping-booking detection, spaces under maintenance, no-show bookings, space utilization summary, maintenance summary by space, booking history for a user, and spaces with specific facilities. Add any additional queries relevant to the business requirements.
+
+**Quality checklist (Step 7):** ≥20 queries total; ≥5 per member; per-member sections labelled with name + ID; every query has all four sections; every query only references tables/columns that exist in `05`; queries run against the `06` sample data.
 
 ---
 
 ## DBMS
 
 Use Microsoft SQL Server syntax unless the user specifies another DBMS.
+
+## SQL Server Requirements
+
+- Use SQL Server syntax and types (`IDENTITY`, `DATETIME2`, `GETDATE()`, `TOP`, `NVARCHAR`, etc.).
+- Every table: a **primary key**. Every relationship: a **foreign key**.
+- Apply **`NOT NULL`** where a value is mandatory; **`CHECK`** for enumerations/ranges (status values, capacity > 0, end-time after start-time); **`DEFAULT`** where useful (timestamps, default status).
+- Add **indexes** for important lookup/filter/join paths (space status, booking time window, booking status, foreign keys used in queries).
+- When a business rule cannot be enforced with a simple `CHECK` constraint — especially:
+  1. no two **approved** bookings overlap for the same space, and
+  2. a space that is under maintenance/closed/retired cannot be booked —
+  document a SQL Server-compatible enforcement strategy (e.g. an `INSTEAD OF`/`AFTER` **trigger**, **transaction-level** validation in a stored procedure, or **application-layer** enforcement) and explain the tradeoff in Step 4 (Design Validation). Do not pretend a plain `CHECK` can do it.
+
+## Domain rules the design must enforce/represent
+
+- Same space cannot have two approved bookings with overlapping time periods.
+- A space under maintenance, temporarily closed, or retired cannot be booked.
+- Booking approval/rejection stores deciding staff, decision time, decision note, and a **rejection reason** when rejected.
+- Check-in records actual start time, checked-in-by, and initial condition.
+- Completion/check-out records actual end time, final condition, and usage notes.
+- Maintenance records include space, reporter, assigned staff, problem description, start/completion time, status, and result note.
+- Historical booking and maintenance records are preserved.
+
+## Phase 1 Audit Requirements
+
+Every generation/refinement/validation/test audit (see `AGENTS.md` section 7 and `audits/AUDIT_TEMPLATE.md`) must additionally record:
+
+- **Which Phase 1 step or output** was evaluated (e.g. "Step 5 / `05-db-definition-G08.sql`").
+- **What issue was found.**
+- **The improvement classification** of the fix: output refinement · AGENTS.md improvement · SKILL.md improvement · command improvement · validation/test improvement · documentation improvement · no agent/skill/command change needed.
+- **Validation results** and **remaining risks.**
 
 ## Design Rules
 
@@ -218,5 +257,5 @@ Use Microsoft SQL Server syntax unless the user specifies another DBMS.
 - Preserve traceability from requirement -> entity -> relationship -> table -> constraint.
 - Use Mermaid `erDiagram` for ERD.
 - Do not silently invent business rules.
-- Do not invent the group number or student names.
+- Do not invent the group number or student names. The group number is `G08`.
 - Keep all content English only.

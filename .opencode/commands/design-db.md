@@ -1,40 +1,26 @@
 ---
-description: Run the database design pipeline from a business requirement file
+description: (Example) Generic entry point for the database design pipeline — for the team to adapt later
 ---
 
-Use the database design pipeline skill in:
+# /design-db — generic example command
 
-`.opencode/skills/db-design-pipeline/SKILL.md`
+This is a **generic, demo-compatible placeholder** entry point for the database design pipeline. It is **not** the current setup task and it does **not** generate the 7 Phase 1 outputs now.
 
-## Sources to read first
+The repository is currently in **setup-only** mode (see `README.md` and `AGENTS.md`). The group will create or adapt the real Phase 1 generation/refinement/validation commands later, when they actually begin Phase 1 work.
 
-Read these before designing, in this order of authority:
+## What it is for
 
-1. The requirement file passed as the argument (usually `req/business-requirement.md`):
+A future/example starting point the team can adapt. When the group is ready to design the database, they can run this against a business requirement file:
 
-   `$ARGUMENTS`
+```text
+/design-db req/business-requirement.md
+```
 
-2. `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` — the detailed source of truth, when present. Use it for entities, attributes, relationships, business rules, validation logic, and example queries.
+- The detailed database-design skill is `.opencode/skills/db-design-pipeline/SKILL.md` — read it for the full 7-step pipeline, SQL Server requirements, and quality checklists.
+- Sources of truth (prefer in this order if details conflict): `CS486_Project.pdf` → `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` → the requirement file passed as `$ARGUMENTS`.
 
-3. `CS486_Project.pdf` — the official requirement, if it is readable in your environment. The official deliverable list and the Query Design format come from here.
+## Rules if this command is ever used
 
-If a detail conflicts, prefer the official `CS486_Project.pdf`, then `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md`, then the requirement argument.
-
-## What to do
-
-- Follow the 7-step Phase 1 pipeline defined in the skill, in order. Do not jump straight to DDL.
-- Later, generate exactly these 7 outputs in `outputs/` (the group number is `G08`):
-  1. `outputs/01-business-req-analysis-G08.md`
-  2. `outputs/02-erd-design-G08.md`
-  3. `outputs/03-logical-design-G08.md`
-  4. `outputs/04-design-validation-G08.md`
-  5. `outputs/05-db-definition-G08.sql`
-  6. `outputs/06-sample-data-G08.sql`
-  7. `outputs/07-query-design-G08.sql`
-
-## Rules
-
-- Do not invent student names. The group number is `G08`; use it in all output filenames.
-- Keep all generated content in English only.
-- Prefer updating a single output file when the user asks for a fix, instead of regenerating everything.
-- After a generation or validation run, record what happened in a new audit under `audits/` (steps run, evaluation, and any refinements) so the group's improvement process is documented.
+- Do **not** modify `outputs/` during the current setup stage.
+- Keep all generated content English only; group number is `G08`; do not invent student names.
+- **Follow the repository audit policy** (`AGENTS.md` section 7), writing an audit with `audits/AUDIT_TEMPLATE.md` and the next available number.
