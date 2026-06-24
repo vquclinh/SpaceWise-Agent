@@ -26,6 +26,7 @@ Run `ls -la` to detect new files before assuming anything exists. Use paths rela
 - **Prefer targeted edits** over regenerating all outputs.
 - If changing one output can affect related outputs, **inspect upstream/downstream files** and keep the whole set consistent (pipeline order: `01 → 02 → 03 → 04 → 05 → 06 → 07`).
 - Avoid unrelated rewrites; change only what the task requires.
+- Step 1 must not include physical database details. For example: Foreign Keys (FK),...
 
 ## 4. SQL Server rules
 
@@ -33,6 +34,7 @@ Run `ls -la` to detect new files before assuming anything exists. Use paths rela
 - Use primary keys, foreign keys, `NOT NULL` where appropriate, `CHECK` constraints where appropriate, `DEFAULT` values where useful, and indexes for important lookup/filter paths.
 - If a business rule cannot be enforced with a simple `CHECK` (e.g. no overlapping approved bookings), document a SQL Server-compatible strategy (trigger logic, transaction-level validation, or application-layer enforcement) and explain the tradeoff in the design validation document.
 - Do **not** validate the final SQL on Supabase/PostgreSQL/MySQL. Use a SQL Server-compatible environment (local SQL Server, a SQL Server container, or Azure SQL).
+- Core entities (Users, Spaces, Bookings, Maintenance) must include created_at and updated_at.
 
 ## 5. Phase 1 output rules
 

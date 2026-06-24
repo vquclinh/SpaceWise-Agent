@@ -48,6 +48,7 @@ Do not skip any file.
 The design must explicitly handle the Campus Space Management System domain. Across the deliverables, ensure the following are represented:
 
 - **Users and university accounts**: user ID, full name, email, phone, role, department, account status. Every user has a university account.
+- **Department**: A mandatory, normalized entity representing a university department.
 - **User roles and account status**: student, lecturer, teaching assistant, facility staff, department administrator, facility manager; account status (e.g. active/inactive).
 - **Spaces and space statuses**: space code, name, type, building, floor, room number, capacity, usage policy; status of available, in use, under maintenance, temporarily closed, or retired.
 - **Facilities per space**: many-to-many between spaces and facilities (e.g. projector, whiteboard, microphone, computer, livestreaming equipment, air conditioner).
@@ -235,6 +236,8 @@ Use Microsoft SQL Server syntax unless the user specifies another DBMS.
 
 - Same space cannot have two approved bookings with overlapping time periods.
 - A space under maintenance, temporarily closed, or retired cannot be booked.
+- Booking Decision has a 1-N relationship with Booking to preserve audit history.
+- The following attributes are mandatory for Step 1 analysis: `problem_category` (Maintenance), `booking_type`, `cancelled_at`, `cancel_reason` (Booking), and `note` (Space Facility).
 - Booking approval/rejection stores deciding staff, decision time, decision note, and a **rejection reason** when rejected.
 - Check-in records actual start time, checked-in-by, and initial condition.
 - Completion/check-out records actual end time, final condition, and usage notes.
