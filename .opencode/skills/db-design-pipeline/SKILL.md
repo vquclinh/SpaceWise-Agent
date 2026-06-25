@@ -96,7 +96,7 @@ Save to:
 The document must include:
 
 - A Mermaid `erDiagram` diagram using Crow's Foot notation.
-- Entity definitions with attributes and identifying attributes (marked as PK for notation purposes only).
+- Entity definitions with attributes and identifying attributes. Attributes must be pure descriptors. Use the placeholder type `attr` for Mermaid syntax, but omit the PK marker to maintain a clean 2-column look in the diagram.
 - Identifying attributes in this step should be business identifiers (e.g., Space Code, Email) rather than technical surrogate keys (e.g., auto-increment IDs). Strictly no physical data types or Foreign Keys (FK) are allowed.
 - Relationship definitions with cardinality (one-to-one, one-to-many, many-to-many).
 - Participation constraints (mandatory vs. optional).
@@ -107,7 +107,8 @@ The document must include:
 - Use Optional notations (`o{` or `o|`) to allow for lifecycle start-from-zero (e.g., a new Department may have zero Users).
 - Verify the 1-to-0..1 relationship for Booking to UsageSession (a booking may not yet be checked in).
 - Treat junction tables (e.g., SpaceFacility) as mandatory on the junction side but optional on the master entity sides.
-- Confirm no technical keys (PK/FK), data types, or indexes appear anywhere in the conceptual design.
+- Ensure no PK or FK markers appear inside entity boxes — only `attr` placeholder types for attributes.
+- Confirm no data types or indexes appear anywhere in the conceptual design.
 
 ---
 

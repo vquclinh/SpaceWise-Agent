@@ -29,6 +29,7 @@ Run `ls -la` to detect new files before assuming anything exists. Use paths rela
 - **Conceptual vs. Logical Boundary (pipeline order):** Steps 1 & 2 (Conceptual Design) must NEVER include physical implementation details such as Data Types (int, string, datetime), Foreign Keys (FK), or Indexes. These are reserved for Step 3 (Logical Design) onward.
 - **Lifecycle & Optionality Rule:** Assume a lifecycle starting from zero. Use Optional notations (`0..n` or `0..1`) for relationships unless there is a specific, absolute business necessity for a Mandatory (`1..n`) relationship. For example, a new Department may have zero Users initially.
 - **Notation Standard:** While using Mermaid Crow's Foot notation for technical convenience, the design logic must prioritize the Chen/Hybrid mindset. Always double-check that the "1" and "Many" sides match business reality, not just table-linking logic.
+- **Mermaid ERD rendering (Step 2):** In Step 2 (Conceptual ERD), use a simple 2-column format for entity boxes. Due to Mermaid syntax, use `attr` as a generic placeholder type for all attributes, but do not use the `PK` or `FK` markers in the diagram. Conceptual identifiers should be clear from the narrative, not technical markers in the boxes.
 
 ## 4. SQL Server rules
 
