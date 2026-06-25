@@ -101,7 +101,9 @@ The document must include:
 - Relationship definitions with cardinality (one-to-one, one-to-many, many-to-many).
 - Participation constraints (mandatory vs. optional).
 - Represent relationships solely through notation lines. Attributes must be pure descriptors only. Strictly no technical keys (PK/FK) or physical data types in this step.
+- While keeping the diagram conceptual (no PK/FK markers), you MUST include all attributes explicitly listed in the Project Specification (Spec §5), including identifiers like user_id, space_id, etc., as they are part of the required data domain.
 - A narrative explanation of key design decisions.
+- The relationship explanation in the narrative must strictly match the lines drawn in the Mermaid diagram. For example, if an entity is connected to a Junction Table, describe the relationship to that Junction Table (1-N), not the logical M-N connection between master entities.
 
 **Quality checklist (Step 2):**
 - Use Optional notations (`o{` or `o|`) to allow for lifecycle start-from-zero (e.g., a new Department may have zero Users).
@@ -109,6 +111,7 @@ The document must include:
 - Treat junction tables (e.g., SpaceFacility) as mandatory on the junction side but optional on the master entity sides.
 - Ensure no PK or FK markers appear inside entity boxes — only `attr` placeholder types for attributes.
 - Confirm no data types or indexes appear anywhere in the conceptual design.
+- Core entities (UserAccount, Space, Booking, MaintenanceRecord) MUST show `created_at` and `updated_at` attributes in the diagram to ensure traceability with Step 1.
 
 ---
 

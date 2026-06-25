@@ -17,6 +17,8 @@ When details conflict, prefer in this order:
 2. `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` — the detailed specification (entities, attributes, relationships, business rules, validation logic, example queries).
 3. `req/business-requirement.md` — the condensed business requirement.
 
+**Step Precedence Rule:** When working on a new step, the output of the immediate previous step (e.g., Output 01 for Step 2) is the primary authority. Use the Project Spec to fill in domain details, but never contradict the decisions finalized in the previous step.
+
 Run `ls -la` to detect new files before assuming anything exists. Use paths relative to the repository root; do not assume any contributor's absolute machine path.
 
 ## 3. Editing rules
