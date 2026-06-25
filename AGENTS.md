@@ -26,7 +26,9 @@ Run `ls -la` to detect new files before assuming anything exists. Use paths rela
 - **Prefer targeted edits** over regenerating all outputs.
 - If changing one output can affect related outputs, **inspect upstream/downstream files** and keep the whole set consistent (pipeline order: `01 → 02 → 03 → 04 → 05 → 06 → 07`).
 - Avoid unrelated rewrites; change only what the task requires.
-- Step 1 must not include physical database details. For example: Foreign Keys (FK),...
+- **Conceptual vs. Logical Boundary (pipeline order):** Steps 1 & 2 (Conceptual Design) must NEVER include physical implementation details such as Data Types (int, string, datetime), Foreign Keys (FK), or Indexes. These are reserved for Step 3 (Logical Design) onward.
+- **Lifecycle & Optionality Rule:** Assume a lifecycle starting from zero. Use Optional notations (`0..n` or `0..1`) for relationships unless there is a specific, absolute business necessity for a Mandatory (`1..n`) relationship. For example, a new Department may have zero Users initially.
+- **Notation Standard:** While using Mermaid Crow's Foot notation for technical convenience, the design logic must prioritize the Chen/Hybrid mindset. Always double-check that the "1" and "Many" sides match business reality, not just table-linking logic.
 
 ## 4. SQL Server rules
 
