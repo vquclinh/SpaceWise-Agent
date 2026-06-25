@@ -48,7 +48,8 @@ Do not skip any file.
 The design must explicitly handle the Campus Space Management System domain. Across the deliverables, ensure the following are represented:
 
 - **Users and university accounts**: user ID, full name, email, phone, role, department, account status. Every user has a university account.
-- **Department**: A mandatory, normalized entity representing a university department.
+- **Department**: A mandatory, normalized entity representing a university department. Every user belongs to a department.
+- **BookingDecision**: Must preserve decision history in a 1-N relationship with Booking (each booking can have multiple decision records over its lifecycle).
 - **User roles and account status**: student, lecturer, teaching assistant, facility staff, department administrator, facility manager; account status (e.g. active/inactive).
 - **Spaces and space statuses**: space code, name, type, building, floor, room number, capacity, usage policy; status of available, in use, under maintenance, temporarily closed, or retired.
 - **Facilities per space**: many-to-many between spaces and facilities (e.g. projector, whiteboard, microphone, computer, livestreaming equipment, air conditioner).
@@ -95,11 +96,18 @@ Save to:
 The document must include:
 
 - A Mermaid `erDiagram` diagram using Crow's Foot notation.
-- Entity definitions with attributes and primary keys.
+- Entity definitions with attributes and identifying attributes (marked as PK for notation purposes only).
+- Identifying attributes in this step should be business identifiers (e.g., Space Code, Email) rather than technical surrogate keys (e.g., auto-increment IDs). Strictly no physical data types or Foreign Keys (FK) are allowed.
 - Relationship definitions with cardinality (one-to-one, one-to-many, many-to-many).
 - Participation constraints (mandatory vs. optional).
-- Foreign key indications.
+- Represent relationships solely through notation lines. Attributes must be pure descriptors only. Strictly no technical keys (PK/FK) or physical data types in this step.
 - A narrative explanation of key design decisions.
+
+**Quality checklist (Step 2):**
+- Use Optional notations (`o{` or `o|`) to allow for lifecycle start-from-zero (e.g., a new Department may have zero Users).
+- Verify the 1-to-0..1 relationship for Booking to UsageSession (a booking may not yet be checked in).
+- Treat junction tables (e.g., SpaceFacility) as mandatory on the junction side but optional on the master entity sides.
+- Confirm no technical keys (PK/FK), data types, or indexes appear anywhere in the conceptual design.
 
 ---
 
