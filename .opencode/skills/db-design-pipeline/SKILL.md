@@ -77,6 +77,11 @@ The document must include:
 - The business purpose and problem statement.
 - Identified actors / user roles and their responsibilities.
 - Identified entities with attributes.
+- **Conceptual Attribute Filter:** When using attributes from Spec §5, only include an ID if it is the Primary Identifier for that specific entity. If an ID is used to link to another entity (a Foreign Key), EXCLUDE it. The relationship description handles that logic.
+- **Contextual Identifier Rule:**
+  - For Stable Entities with mutable codes (e.g., Space), keep both the system ID (`space_id`) for stability and the business code (`space_code`) for user recognition.
+  - For Transactional/Event Entities (e.g., Booking, MaintenanceRecord), purge redundant codes. Keep only the system ID (`booking_id`, `maintenance_id`) — their identity does not change over time like a room name.
+- **Metadata Requirement:** Core entities (UserAccount, Space, Booking, MaintenanceRecord) MUST include `created_at` and `updated_at` as descriptive attributes. These are NOT linking IDs; they are metadata essential for the conceptual domain.
 - Identified relationships and their cardinalities.
 - Identified business rules and constraints (including the two critical booking rules above).
 - Explicitly recorded assumptions.
@@ -101,7 +106,12 @@ The document must include:
 - Relationship definitions with cardinality (one-to-one, one-to-many, many-to-many).
 - Participation constraints (mandatory vs. optional).
 - Represent relationships solely through notation lines. Attributes must be pure descriptors only. Strictly no technical keys (PK/FK) or physical data types in this step.
-- While keeping the diagram conceptual (no PK/FK markers), you MUST include all attributes explicitly listed in the Project Specification (Spec §5), including identifiers like user_id, space_id, etc., as they are part of the required data domain.
+- Include each entity's own descriptive attributes from the Project Specification (Spec §5). Exclude linking attributes (Foreign Keys) — the Crow's Foot lines handle those connections.
+- **Conceptual Attribute Filter:** When using attributes from Spec §5, only include an ID if it is the Primary Identifier for that specific entity. If an ID is used to link to another entity (a Foreign Key), EXCLUDE it. The ERD relationship line handles that logic.
+- **Contextual Identifier Rule:**
+  - For Stable Entities with mutable codes (e.g., Space), keep both the system ID (`space_id`) for stability and the business code (`space_code`) for user recognition.
+  - For Transactional/Event Entities (e.g., Booking, MaintenanceRecord), purge redundant codes. Keep only the system ID (`booking_id`, `maintenance_id`) — their identity does not change over time like a room name.
+- **Metadata Requirement:** Core entities (UserAccount, Space, Booking, MaintenanceRecord) MUST include `created_at` and `updated_at` as descriptive attributes. These are NOT linking IDs; they are metadata essential for the conceptual domain.
 - A narrative explanation of key design decisions.
 - The relationship explanation in the narrative must strictly match the lines drawn in the Mermaid diagram. For example, if an entity is connected to a Junction Table, describe the relationship to that Junction Table (1-N), not the logical M-N connection between master entities.
 
@@ -125,12 +135,14 @@ Save to:
 
 The document must include:
 
-- A table-by-table mapping from ERD entities into a relational schema.
+- A table-by-table mapping from ERD entities into a relational schema — provide a detailed specification for each table (columns, types, constraints, defaults), followed by the visual diagram to show the interconnection.
 - Column names, data types, nullability, and default values.
 - Primary keys, candidate keys, and unique constraints.
 - Foreign key definitions referencing parent tables.
 - Key constraints and check constraints.
 - Index recommendations.
+- **Linking Strategy:** This is the stage to brainstorm and introduce linking attributes. Transform the ERD relationship lines into physical Foreign Key columns based on the full attribute lists in the Spec.
+- **Logical Schema Diagram:** Include a Mermaid `erDiagram` diagram that differs from the conceptual ERD by showing physical details: SQL Server data types (e.g., `int`, `nvarchar`, `datetime2`), and constraint markers (`PK`, `FK`, `UK`). This diagram visually documents the interconnection of all tables.
 
 ---
 
