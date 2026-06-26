@@ -64,12 +64,18 @@ Follow the 7-step pipeline in order; do not jump straight to DDL. The query file
 ## 6. Team workflow rules
 
 - Standard loop: **generate → refine → validate**, each producing an audit.
-- Commands (setup stage): `/audit-smoke-test` (the only setup-safe command) and `/design-db` (a generic example placeholder to adapt later). The Phase 1 production commands (generate/refine/validate/SQL-test) are **not** in the repo yet — the group will create or adapt them when Phase 1 work begins.
-- Suggested split: Duyen → 01+02; Thi → 03+04; Vi → 05+06; Linh → integration + 07 + validation/report notes. Everyone reviews the whole set; `07` is shared (each member adds their ≥5 queries).
+- **Working commands now:** `/audit-smoke-test` (setup-safe) and `/design-db` (generic example placeholder).
+- **Per-task command + skill placeholders (NOT production-ready yet):** the repository contains empty placeholder files for the step-by-step Phase 1 workflow:
+  - Commands: `.opencode/commands/0{1..7}-generate-*.md` (`01-generate-business-req`, `02-generate-erd-design`, `03-generate-logical-design`, `04-generate-design-validation`, `05-generate-db-definition`, `06-generate-sample-data`, `07-generate-query-design`).
+  - Task skills: `.opencode/skills/db-design-pipeline/<NN>-*/SKILL.md` (one per step).
+  - These are **intentionally empty**, to be completed later by the assigned task owner. **Until a task command/skill is completed, do not use it to generate outputs.** When a task owner fills one in, they must follow the repository audit policy (section 7).
+- The **shared skill** `.opencode/skills/db-design-pipeline/SKILL.md` remains the common contract for Phase 1 database design rules.
+- **Do not generate Phase 1 outputs as part of setup.** `outputs/` should hold only `.gitkeep` plus whatever the group has explicitly generated in its own Phase 1 sessions; setup/documentation tasks must not add or modify deliverables.
+- Suggested split (who completes/owns each step): Duyen → 01+02; Thi → 03+04; Vi → 05+06; Linh → integration + 07 + validation/report notes. Everyone reviews the whole set; `07` is shared (each member adds their ≥5 queries).
 
 ## 7. Audit policy
 
-**Every meaningful AI-assisted repository change must create an audit Markdown file under `audits/`**, using `audits/AUDIT_TEMPLATE.md`, numbered with the next available number. Small manual typo-only edits do **not** need a separate audit unless they affect workflow, deliverables, SQL, or project instructions.
+**Every meaningful AI-assisted repository change must create an audit Markdown file under `docs/audits/`**, using `docs/audits/AUDIT_TEMPLATE.md`, numbered with the next available number. Small manual typo-only edits do **not** need a separate audit unless they affect workflow, deliverables, SQL, or project instructions.
 
 Future prompts may simply say: **"Follow the repository audit policy."** That means: do the work, then write an audit as specified here.
 

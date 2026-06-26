@@ -24,17 +24,17 @@ Course-facing description of the group agent setup.
 
 - **Primary tool:** OpenCode (fixed).
 - **Model policy:** the provider/model/variant is **selected per session** and **must be recorded in each audit**. We deliberately do **not** hardcode a single global model — members may use different providers/models. The final report lists every model actually used.
-- Other agents (e.g. Claude Code) are **auxiliary** only (review/fixes recorded under `audits/`); they do not generate deliverables.
+- Other agents (e.g. Claude Code) are **auxiliary** only (review/fixes recorded under `docs/audits/`); they do not generate deliverables.
 
-## Current status: setup-only
+## Current status: setup scaffold with placeholders
 
-The repository is currently a **setup-only scaffold**. Vo Quoc Linh's current role is to set up the OpenCode repo workflow for the team — **not** to generate Phase 1 deliverables. `outputs/` stays empty except `.gitkeep`.
+The repository is an **OpenCode setup scaffold with placeholder per-task command/skill files**. The step-by-step Phase 1 command files (`.opencode/commands/0{1..7}-generate-*.md`) and the matching task-specific skills (`.opencode/skills/db-design-pipeline/<NN>-*/SKILL.md`) currently exist but are **empty placeholders** — they are **not complete or ready to use**. Each group member will complete and use the command/skill for the step they own, later.
 
-The only setup-safe command is `/audit-smoke-test` (rehearses the audit policy). `/design-db` is a generic example placeholder. No frontend/backend/deployment work is part of setup.
+Vo Quoc Linh's current role is **setup** — preparing the OpenCode repo workflow and these placeholders for the team — **not** generating Phase 1 deliverables. The only setup-safe command is `/audit-smoke-test`; `/design-db` is a generic example placeholder. No frontend/backend/deployment work is part of setup.
 
 ## Phase 1 workflow (later, by the group)
 
-When the group starts Phase 1 (database design deliverables and validation), they will create/adapt the production commands and follow this workflow:
+When the group starts Phase 1, task owners will fill in their placeholder command/skill files and follow this workflow:
 
 1. **Generate** the 7 Phase 1 outputs.
 2. **Review / refine** outputs.
@@ -45,7 +45,7 @@ When the group starts Phase 1 (database design deliverables and validation), the
 ## Locations
 
 - **Outputs:** `outputs/` (the 7 Phase 1 deliverables, named with `G08`).
-- **Audits:** `audits/` (one per meaningful AI-assisted change, following `audits/AUDIT_TEMPLATE.md`).
+- **Audits:** `docs/audits/` (one per meaningful AI-assisted change, following `docs/audits/AUDIT_TEMPLATE.md`).
 
 ## Why audits matter
 

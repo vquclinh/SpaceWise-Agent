@@ -270,7 +270,7 @@ Use Microsoft SQL Server syntax unless the user specifies another DBMS.
 
 ## Phase 1 Audit Requirements
 
-Every generation/refinement/validation/test audit (see `AGENTS.md` section 7 and `audits/AUDIT_TEMPLATE.md`) must additionally record:
+Every generation/refinement/validation/test audit (see `AGENTS.md` section 7 and `docs/audits/AUDIT_TEMPLATE.md`) must additionally record:
 
 - **Which Phase 1 step or output** was evaluated (e.g. "Step 5 / `05-db-definition-G08.sql`").
 - **What issue was found.**

@@ -23,4 +23,4 @@ A future/example starting point the team can adapt. When the group is ready to d
 
 - Do **not** modify `outputs/` during the current setup stage.
 - Keep all generated content English only; group number is `G08`; do not invent student names.
-- **Follow the repository audit policy** (`AGENTS.md` section 7), writing an audit with `audits/AUDIT_TEMPLATE.md` and the next available number.
+- **Follow the repository audit policy** (`AGENTS.md` section 7), writing an audit with `docs/audits/AUDIT_TEMPLATE.md` and the next available number.

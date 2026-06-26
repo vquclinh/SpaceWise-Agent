@@ -37,7 +37,7 @@ Please follow these. They keep our grade and our history safe.
 
 - **OpenCode + DeepSeek (or whatever you like, not just only DeepSeek) is the primary workflow.** The 7 deliverables should be generated through OpenCode, not hand-written or pasted from somewhere else.
 - **Do not silently edit outputs by hand.** If you change something, record what changed and why (an audit, or at least a clear commit message).
-- **Every meaningful AI-assisted work session must create an audit file in `audits/`.** See section 9.
+- **Every meaningful AI-assisted work session must create an audit file in `docs/audits/`.** See section 9.
 - **The model is not fixed.** Each member may pick whatever provider/model works for them in OpenCode — but you **must record the exact provider/model in that session's audit**. The report lists every model the group actually used.
 - Audits matter because the final report has to explain our **agent improvement process** — how we evaluated the agent at each step and how we improved it. The audits are the raw evidence for that.
 
@@ -47,16 +47,32 @@ Please follow these. They keep our grade and our history safe.
 .
 ├── .opencode/
 │   ├── commands/
-│   │   ├── audit-smoke-test.md          # /audit-smoke-test — the only setup-safe command
-│   │   └── design-db.md                 # /design-db — generic example placeholder (adapt later)
+│   │   ├── audit-smoke-test.md          # /audit-smoke-test — setup-safe command (ready)
+│   │   ├── design-db.md                 # /design-db — generic example placeholder (ready)
+│   │   ├── 01-generate-business-req.md      # PLACEHOLDER — task owner fills later
+│   │   ├── 02-generate-erd-design.md        # PLACEHOLDER — task owner fills later
+│   │   ├── 03-generate-logical-design.md    # PLACEHOLDER — task owner fills later
+│   │   ├── 04-generate-design-validation.md # PLACEHOLDER — task owner fills later
+│   │   ├── 05-generate-db-definition.md     # PLACEHOLDER — task owner fills later
+│   │   ├── 06-generate-sample-data.md       # PLACEHOLDER — task owner fills later
+│   │   └── 07-generate-query-design.md      # PLACEHOLDER — task owner fills later
 │   └── skills/
 │       └── db-design-pipeline/
-│           ├── SKILL.md                 # the 7-step DB design pipeline (the real logic)
+│           ├── SKILL.md                 # shared skill — common contract (ready)
+│           ├── 01-business-req-analysis/SKILL.md  # PLACEHOLDER — task skill, filled later
+│           ├── 02-erd-design/SKILL.md             # PLACEHOLDER — task skill, filled later
+│           ├── 03-logical-design/SKILL.md         # PLACEHOLDER — task skill, filled later
+│           ├── 04-design-validation/SKILL.md      # PLACEHOLDER — task skill, filled later
+│           ├── 05-db-definition/SKILL.md          # PLACEHOLDER — task skill, filled later
+│           ├── 06-sample-data/SKILL.md            # PLACEHOLDER — task skill, filled later
+│           ├── 07-query-design/SKILL.md           # PLACEHOLDER — task skill, filled later
 │           └── templates/               # optional output templates (.gitkeep keeps it tracked)
 ├── req/
 │   └── business-requirement.md          # short business requirement (main input)
 ├── outputs/                             # the 7 deliverables go here LATER (now: just .gitkeep)
-├── audits/                              # our memory: review + improvement records
+├── docs/
+│   ├── project-overview.md              # project + Phase 1 overview (start here)
+│   └── audits/                          # our memory: review + improvement records (+ AUDIT_TEMPLATE.md)
 ├── scripts/
 │   ├── check_required_files.sh          # checks scaffold / deliverables exist
 │   └── validate_sql.sh                  # checks the SQL deliverables look valid
@@ -73,16 +89,18 @@ Quick "what is this for" list:
 
 | File / folder | What it's for |
 |---|---|
+| `docs/project-overview.md` | **Start here** — concise project + Phase 1 overview, required outputs, key paths, and current repo status. |
 | `AGENT.md` | Official CS486 **course-facing** manifest: project, group `G08`, members/IDs, tool/model policy, DBMS, Phase 1 workflow summary, output/audit locations. |
 | `AGENTS.md` | The **agent-facing rulebook** OpenCode reads automatically: scope, source-of-truth order, editing/SQL/output rules, team workflow, **audit policy**, validation policy, git/safety, future deployment policy. |
-| `.opencode/commands/` | Setup-stage OpenCode commands: `/audit-smoke-test` (the only setup-safe command) and `/design-db` (a generic example placeholder to adapt later). Phase 1 production commands will be added by the group when they start Phase 1. |
-| `.opencode/skills/db-design-pipeline/SKILL.md` | The actual brain: the detailed 7-step pipeline and what each output must contain. |
+| `.opencode/commands/` | Two ready commands (`/audit-smoke-test`, `/design-db`) plus **seven empty per-task command placeholders** (`0{1..7}-generate-*.md`) that task owners complete later. |
+| `.opencode/skills/db-design-pipeline/SKILL.md` | The **shared skill** — common contract: cross-cutting rules, source-of-truth order, domain + SQL Server rules, the 7-step detail. |
+| `.opencode/skills/db-design-pipeline/<NN>-*/SKILL.md` | **Seven empty task-specific skill placeholders** (one per step), completed later by task owners alongside the matching command. |
 | `.opencode/skills/db-design-pipeline/templates/` | Optional place for output templates so files look consistent. Empty for now, but tracked. |
 | `req/business-requirement.md` | The condensed business requirement. Usual input to `/design-db`. |
 | `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` | The detailed spec (entities, rules, example queries). The agent uses this as the detailed source of truth. |
 | `CS486_Project.pdf` | The official assignment. Final word if anything conflicts. |
-| `outputs/` | Where the 7 deliverables live later. Right now it must stay empty except `.gitkeep`. |
-| `audits/` | Our improvement/evaluation history. One audit per meaningful session. |
+| `outputs/` | Where the 7 deliverables live. Only the group's own Phase 1 sessions add them; **setup/documentation tasks never add or modify outputs** (they only preserve `.gitkeep`). |
+| `docs/audits/` | Our improvement/evaluation history. One audit per meaningful session. |
 | `scripts/check_required_files.sh` | Confirms the scaffold (setup) or all 7 deliverables (final) exist. |
 | `scripts/validate_sql.sh` | Confirms the SQL files have real content (CREATE TABLE / INSERT / ≥5 queries). |
 | `cs486-demo-share.zip` | The teacher's example layout. Reference only — we don't copy it blindly. |
@@ -98,21 +116,37 @@ Here's the chain, start to finish:
 4. **The skill defines the 7-step database design pipeline** and exactly what each output file must contain.
 5. The command tells the agent to **read `req/business-requirement.md` plus the spec and the PDF** as sources of truth.
 6. The agent then **generates the 7 files in `outputs/`** — but **later, when the team is ready**, not during setup.
-7. After it generates or fixes anything, the agent should **create an audit** in `audits/`.
+7. After it generates or fixes anything, the agent should **create an audit** in `docs/audits/`.
 
-### The commands (setup stage)
+### The commands
 
-The repo is in **setup-only** mode, so there are just two commands right now:
+**Ready now (setup-safe):**
 
 ```text
 /audit-smoke-test                      # safe rehearsal: checks the audit policy, no outputs touched
 /design-db req/business-requirement.md # generic example placeholder — for the team to adapt later
 ```
 
-- **`/audit-smoke-test`** — the only **setup-safe** command. A read-only rehearsal of the audit habit; it does not touch `outputs/`. Use it to confirm audit creation works.
-- **`/design-db`** — a generic example placeholder entry point. It does **not** generate the 7 outputs now; it points to the detailed skill so the team can adapt it later.
+- **`/audit-smoke-test`** — read-only rehearsal of the audit habit; does not touch `outputs/`.
+- **`/design-db`** — a generic example placeholder entry point; does **not** generate the 7 outputs now.
 
-**Phase 1 production commands** (to generate / refine / validate / SQL-test the deliverables) are intentionally **not** in the repo yet. The group will create or adapt them when they actually start Phase 1 work — that is not part of the current setup task.
+**Per-task command + skill placeholders (NOT ready — empty on purpose):**
+
+The step-by-step Phase 1 commands and their matching task-specific skills exist as **empty placeholders**. Each is completed later by the member who owns that step. **Do not run a task command until its command file and task skill are filled in.**
+
+| Step | Command (placeholder) | Task skill (placeholder) | Owner |
+|---|---|---|---|
+| 01 | `01-generate-business-req.md` | `01-business-req-analysis/SKILL.md` | Duyen |
+| 02 | `02-generate-erd-design.md` | `02-erd-design/SKILL.md` | Duyen |
+| 03 | `03-generate-logical-design.md` | `03-logical-design/SKILL.md` | Thi |
+| 04 | `04-generate-design-validation.md` | `04-design-validation/SKILL.md` | Thi |
+| 05 | `05-generate-db-definition.md` | `05-db-definition/SKILL.md` | Vi |
+| 06 | `06-generate-sample-data.md` | `06-sample-data/SKILL.md` | Vi |
+| 07 | `07-generate-query-design.md` | `07-query-design/SKILL.md` | Linh |
+
+**Task order is strictly `01 → 02 → 03 → 04 → 05 → 06 → 07`** (each step builds on the previous outputs). When a task owner fills in a command + skill, the command should read `AGENTS.md`, the shared skill, its task skill, and the required upstream outputs — and follow the repository audit policy.
+
+> **Setup validation only checks that these placeholder files *exist*** — it does **not** check that their content is complete or correct. Completing the content (and its quality) is each task owner's job.
 
 ### Which file is which
 
@@ -121,7 +155,7 @@ The repo is in **setup-only** mode, so there are just two commands right now:
 
 ### Audit policy (short version)
 
-Every meaningful AI-assisted change writes an audit in `audits/` using `audits/AUDIT_TEMPLATE.md`. You don't have to retype the format — a prompt can simply say **"Follow the repository audit policy."** (full policy in `AGENTS.md` section 7). Small typo-only edits don't need an audit unless they affect workflow, deliverables, SQL, or project instructions. **These audits are the evidence source for the final report's agent improvement process.**
+Every meaningful AI-assisted change writes an audit in `docs/audits/` using `docs/audits/AUDIT_TEMPLATE.md`. You don't have to retype the format — a prompt can simply say **"Follow the repository audit policy."** (full policy in `AGENTS.md` section 7). Small typo-only edits don't need an audit unless they affect workflow, deliverables, SQL, or project instructions. **These audits are the evidence source for the final report's agent improvement process.**
 
 ### Phase 1 scope
 
@@ -226,9 +260,9 @@ audit: record generation review
 
 ## 9. Audit rule — very important
 
-**`audits/` is our memory. Do not skip it.**
+**`docs/audits/` is our memory. Do not skip it.**
 
-After *every* OpenCode / Claude / ChatGPT-assisted change, create an audit file in `audits/` (next number in sequence, e.g. `audits/05-...md`).
+After *every* OpenCode / Claude / ChatGPT-assisted change, create an audit file in `docs/audits/` (next number in sequence, e.g. `docs/audits/05-...md`).
 
 The audit should clearly say:
 
@@ -247,7 +281,7 @@ Why we care: these audits become the raw material for the report's **"agent impr
 Reusable snippet — paste this into OpenCode/Claude at the end of a task:
 
 ```text
-After completing the task, create an audit Markdown file in audits/.
+After completing the task, create an audit Markdown file in docs/audits/.
 The audit must summarize: task goal, tool/model used, files changed, validation run,
 issues found, improvements made, risks/caveats, git status, and recommended next steps.
 Do not generate unrelated files.
@@ -291,7 +325,7 @@ Example:
       `bash scripts/check_required_files.sh --final G08` and `bash scripts/validate_sql.sh --final G08`.
 - [ ] Make sure `outputs/` has **exactly the 7 required deliverables** (correct `G08` names, real content).
 - [ ] Make sure the **report PDF** includes member info, **all** LLM model(s) used, and the agent improvement process.
-- [ ] Make sure `audits/` has **enough history** to support the report's improvement section.
+- [ ] Make sure `docs/audits/` has **enough history** to support the report's improvement section.
 - [ ] Check `git status` is **clean** before final submission.
 
 ---

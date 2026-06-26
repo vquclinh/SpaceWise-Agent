@@ -50,18 +50,39 @@ deliverables_for() {
 }
 
 if [[ "$MODE" == "setup" ]]; then
-  echo "Setup-mode check: verifying scaffold and that no deliverables exist yet..."
+  echo "Setup-mode check: verifying the OpenCode scaffold and per-task placeholders..."
   echo ""
 
+  # Core setup scaffold (must exist). Root SKILL.md is intentionally NOT required.
   SCAFFOLD=(
     "AGENT.md"
     "AGENTS.md"
     "README.md"
     "req/business-requirement.md"
     "outputs/.gitkeep"
-    ".opencode/skills/db-design-pipeline/SKILL.md"
+    "docs/audits/AUDIT_TEMPLATE.md"
     ".opencode/commands/audit-smoke-test.md"
-    "audits/AUDIT_TEMPLATE.md"
+    ".opencode/skills/db-design-pipeline/SKILL.md"
+  )
+
+  # Per-task command + task-specific skill placeholders. Presence-only:
+  # these are intentionally empty placeholders for task owners to complete later,
+  # so this check does NOT require any content.
+  PLACEHOLDERS=(
+    ".opencode/commands/01-generate-business-req.md"
+    ".opencode/commands/02-generate-erd-design.md"
+    ".opencode/commands/03-generate-logical-design.md"
+    ".opencode/commands/04-generate-design-validation.md"
+    ".opencode/commands/05-generate-db-definition.md"
+    ".opencode/commands/06-generate-sample-data.md"
+    ".opencode/commands/07-generate-query-design.md"
+    ".opencode/skills/db-design-pipeline/01-business-req-analysis/SKILL.md"
+    ".opencode/skills/db-design-pipeline/02-erd-design/SKILL.md"
+    ".opencode/skills/db-design-pipeline/03-logical-design/SKILL.md"
+    ".opencode/skills/db-design-pipeline/04-design-validation/SKILL.md"
+    ".opencode/skills/db-design-pipeline/05-db-definition/SKILL.md"
+    ".opencode/skills/db-design-pipeline/06-sample-data/SKILL.md"
+    ".opencode/skills/db-design-pipeline/07-query-design/SKILL.md"
   )
 
   PROBLEMS=0
@@ -75,15 +96,26 @@ if [[ "$MODE" == "setup" ]]; then
   done
 
   echo ""
-  # Any deliverable-looking file in outputs/ at setup stage is a problem.
+  echo "Per-task placeholders (presence only — content completed later by task owners):"
+  for FILE in "${PLACEHOLDERS[@]}"; do
+    if [[ -f "$FILE" ]]; then
+      echo "  [OK]    $FILE"
+    else
+      echo "  [MISS]  $FILE"
+      PROBLEMS=$((PROBLEMS + 1))
+    fi
+  done
+
+  echo ""
+  # Informational only: list any deliverables already generated. Their presence is
+  # expected once the group has begun Phase 1; it is NOT a setup failure.
   FOUND_DELIVERABLES=$(find outputs -maxdepth 1 -type f \
     -name '0[1-7]-*-G*.md' -o -name '0[1-7]-*-G*.sql' 2>/dev/null | sort || true)
   if [[ -n "$FOUND_DELIVERABLES" ]]; then
-    echo "  [WARN]  Deliverables already present (should be empty at setup):"
+    echo "  [NOTE]  Deliverables already generated (Phase 1 has begun); use --final G08 to validate them:"
     echo "$FOUND_DELIVERABLES" | sed 's/^/            /'
-    PROBLEMS=$((PROBLEMS + 1))
   else
-    echo "  [OK]    outputs/ contains no final deliverables yet (expected at setup)."
+    echo "  [OK]    outputs/ contains no deliverables yet (pure setup stage)."
   fi
 
   echo ""
@@ -91,7 +123,7 @@ if [[ "$MODE" == "setup" ]]; then
     echo "SETUP FAIL: ${PROBLEMS} problem(s) found."
     exit 1
   else
-    echo "SETUP PASS: scaffold present and outputs/ has no deliverables yet."
+    echo "SETUP PASS: scaffold and per-task placeholders present."
   fi
   exit 0
 fi

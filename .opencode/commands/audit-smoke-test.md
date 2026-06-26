@@ -15,8 +15,8 @@ A safe, read-only command to verify that OpenCode follows the repository audit p
    bash scripts/check_required_files.sh --setup
    bash scripts/validate_sql.sh --setup
    ```
-3. **Follow the repository audit policy** (`AGENTS.md` section 7) and create an audit using `audits/AUDIT_TEMPLATE.md`.
-   - Name it with the **next available audit number** and the slug `audit-policy-smoke-test-audit` (e.g. `audits/NN-audit-policy-smoke-test-audit.md`). Do not backfill earlier missing audit numbers.
+3. **Follow the repository audit policy** (`AGENTS.md` section 7) and create an audit using `docs/audits/AUDIT_TEMPLATE.md`.
+   - Name it with the **next available audit number** and the slug `audit-policy-smoke-test-audit` (e.g. `docs/audits/NN-audit-policy-smoke-test-audit.md`). Do not backfill earlier missing audit numbers.
    - Record the exact **provider/model/variant** used in this session.
    - Classify the change as **"validation/test improvement"** or **"no agent/skill/command change needed"**.
    - Include the validation commands and their results, git status, and a confirmation that `outputs/` was not modified.
