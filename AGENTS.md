@@ -14,8 +14,11 @@ This is the main agent-facing rulebook. OpenCode reads it as project-level rules
 When details conflict, prefer in this order:
 
 1. `CS486_Project.pdf` — the official requirement (deliverable list, Query Design format).
-2. `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` — the detailed specification (entities, attributes, relationships, business rules, validation logic, example queries).
-3. `req/business-requirement.md` — the condensed business requirement.
+2. Previous Step Outputs — mandatory consistency (e.g., Output 01 for Step 2).
+3. `req/business-requirement.md` — primary business logic (condensed requirement).
+4. `CAMPUS_SPACE_MANAGEMENT_PROJECT_SPEC.md` — supplementary reference only for domain logic and reporting examples.
+
+**Step Precedence Rule:** When working on a new step, the output of the immediate previous step (e.g., Output 01 for Step 2) is the primary authority. Previous Step Outputs take precedence over the requirement document and the Project Spec for design consistency.
 
 Run `ls -la` to detect new files before assuming anything exists. Use paths relative to the repository root; do not assume any contributor's absolute machine path.
 
@@ -26,6 +29,15 @@ Run `ls -la` to detect new files before assuming anything exists. Use paths rela
 - **Prefer targeted edits** over regenerating all outputs.
 - If changing one output can affect related outputs, **inspect upstream/downstream files** and keep the whole set consistent (pipeline order: `01 → 02 → 03 → 04 → 05 → 06 → 07`).
 - Avoid unrelated rewrites; change only what the task requires.
+- **Conceptual vs. Logical Boundary (pipeline order):** Steps 1 & 2 (Conceptual Design) must NEVER include physical implementation details such as Data Types (int, string, datetime), Foreign Keys (FK), or Indexes. These are reserved for Step 3 (Logical Design) onward.
+- **Lifecycle & Optionality Rule:** Assume a lifecycle starting from zero. Use Optional notations (`0..n` or `0..1`) for relationships unless there is a specific, absolute business necessity for a Mandatory (`1..n`) relationship. For example, a new Department may have zero Users initially.
+- **Notation Standard:** While using Mermaid Crow's Foot notation for technical convenience, the design logic must prioritize the Chen/Hybrid mindset. Always double-check that the "1" and "Many" sides match business reality, not just table-linking logic.
+- **Mermaid ERD rendering (Step 2):** In Step 2 (Conceptual ERD), use a simple 2-column format for entity boxes. Due to Mermaid syntax, use `attr` as a generic placeholder type for all attributes, but do not use the `PK` or `FK` markers in the diagram. Conceptual identifiers should be clear from the narrative, not technical markers in the boxes.
+- **Strict Conceptual Purity — Home ID vs. Visitor ID:**
+  An identifier (e.g., user_id, space_id) belongs ONLY inside its defining entity box.
+  It is strictly FORBIDDEN to appear in other entities as a linking field (Foreign Key) during Step 1 & 2.
+  Relationship lines represent the connections; physical Foreign Key columns must only appear starting from Step 3 (Logical Design).
+- **Relationship Labeling (Step 3):** In the Step 3 Logical Schema Diagram, Mermaid relationship lines between tables must be labeled with the actual Foreign Key column name used for the connection (e.g., `user_accounts ||--o{ bookings : "requester_id"`), instead of descriptive verbs. This makes the mapping between the relationship line and the FK column explicit at a glance.
 
 ## 4. SQL Server rules
 
@@ -33,6 +45,7 @@ Run `ls -la` to detect new files before assuming anything exists. Use paths rela
 - Use primary keys, foreign keys, `NOT NULL` where appropriate, `CHECK` constraints where appropriate, `DEFAULT` values where useful, and indexes for important lookup/filter paths.
 - If a business rule cannot be enforced with a simple `CHECK` (e.g. no overlapping approved bookings), document a SQL Server-compatible strategy (trigger logic, transaction-level validation, or application-layer enforcement) and explain the tradeoff in the design validation document.
 - Do **not** validate the final SQL on Supabase/PostgreSQL/MySQL. Use a SQL Server-compatible environment (local SQL Server, a SQL Server container, or Azure SQL).
+- Core entities (Users, Spaces, Bookings, Maintenance) must include created_at and updated_at.
 
 ## 5. Phase 1 output rules
 

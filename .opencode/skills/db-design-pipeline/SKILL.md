@@ -48,6 +48,8 @@ Do not skip any file.
 The design must explicitly handle the Campus Space Management System domain. Across the deliverables, ensure the following are represented:
 
 - **Users and university accounts**: user ID, full name, email, phone, role, department, account status. Every user has a university account.
+- **Department**: A mandatory, normalized entity representing a university department. Every user belongs to a department.
+- **BookingDecision**: Must preserve decision history in a 1-N relationship with Booking (each booking can have multiple decision records over its lifecycle).
 - **User roles and account status**: student, lecturer, teaching assistant, facility staff, department administrator, facility manager; account status (e.g. active/inactive).
 - **Spaces and space statuses**: space code, name, type, building, floor, room number, capacity, usage policy; status of available, in use, under maintenance, temporarily closed, or retired.
 - **Facilities per space**: many-to-many between spaces and facilities (e.g. projector, whiteboard, microphone, computer, livestreaming equipment, air conditioner).
@@ -75,6 +77,11 @@ The document must include:
 - The business purpose and problem statement.
 - Identified actors / user roles and their responsibilities.
 - Identified entities with attributes.
+- **Conceptual Attribute Filter:** When using attributes from Spec §5, only include an ID if it is the Primary Identifier for that specific entity. If an ID is used to link to another entity (a Foreign Key), EXCLUDE it. The relationship description handles that logic.
+- **Contextual Identifier Rule:**
+  - For Stable Entities with mutable codes (e.g., Space), keep both the system ID (`space_id`) for stability and the business code (`space_code`) for user recognition.
+  - For Transactional/Event Entities (e.g., Booking, MaintenanceRecord), purge redundant codes. Keep only the system ID (`booking_id`, `maintenance_id`) — their identity does not change over time like a room name.
+- **Metadata Requirement:** Core entities (UserAccount, Space, Booking, MaintenanceRecord) MUST include `created_at` and `updated_at` as descriptive attributes. These are NOT linking IDs; they are metadata essential for the conceptual domain.
 - Identified relationships and their cardinalities.
 - Identified business rules and constraints (including the two critical booking rules above).
 - Explicitly recorded assumptions.
@@ -94,11 +101,27 @@ Save to:
 The document must include:
 
 - A Mermaid `erDiagram` diagram using Crow's Foot notation.
-- Entity definitions with attributes and primary keys.
+- Entity definitions with attributes and identifying attributes. Attributes must be pure descriptors. Use the placeholder type `attr` for Mermaid syntax, but omit the PK marker to maintain a clean 2-column look in the diagram.
+- Identifying attributes in this step should be business identifiers (e.g., Space Code, Email) rather than technical surrogate keys (e.g., auto-increment IDs). Strictly no physical data types or Foreign Keys (FK) are allowed.
 - Relationship definitions with cardinality (one-to-one, one-to-many, many-to-many).
 - Participation constraints (mandatory vs. optional).
-- Foreign key indications.
+- Represent relationships solely through notation lines. Attributes must be pure descriptors only. Strictly no technical keys (PK/FK) or physical data types in this step.
+- Include each entity's own descriptive attributes from the Project Specification (Spec §5). Exclude linking attributes (Foreign Keys) — the Crow's Foot lines handle those connections.
+- **Conceptual Attribute Filter:** When using attributes from Spec §5, only include an ID if it is the Primary Identifier for that specific entity. If an ID is used to link to another entity (a Foreign Key), EXCLUDE it. The ERD relationship line handles that logic.
+- **Contextual Identifier Rule:**
+  - For Stable Entities with mutable codes (e.g., Space), keep both the system ID (`space_id`) for stability and the business code (`space_code`) for user recognition.
+  - For Transactional/Event Entities (e.g., Booking, MaintenanceRecord), purge redundant codes. Keep only the system ID (`booking_id`, `maintenance_id`) — their identity does not change over time like a room name.
+- **Metadata Requirement:** Core entities (UserAccount, Space, Booking, MaintenanceRecord) MUST include `created_at` and `updated_at` as descriptive attributes. These are NOT linking IDs; they are metadata essential for the conceptual domain.
 - A narrative explanation of key design decisions.
+- The relationship explanation in the narrative must strictly match the lines drawn in the Mermaid diagram. For example, if an entity is connected to a Junction Table, describe the relationship to that Junction Table (1-N), not the logical M-N connection between master entities.
+
+**Quality checklist (Step 2):**
+- Use Optional notations (`o{` or `o|`) to allow for lifecycle start-from-zero (e.g., a new Department may have zero Users).
+- Verify the 1-to-0..1 relationship for Booking to UsageSession (a booking may not yet be checked in).
+- Treat junction tables (e.g., SpaceFacility) as mandatory on the junction side but optional on the master entity sides.
+- Ensure no PK or FK markers appear inside entity boxes — only `attr` placeholder types for attributes.
+- Confirm no data types or indexes appear anywhere in the conceptual design.
+- Core entities (UserAccount, Space, Booking, MaintenanceRecord) MUST show `created_at` and `updated_at` attributes in the diagram to ensure traceability with Step 1.
 
 ---
 
@@ -112,12 +135,14 @@ Save to:
 
 The document must include:
 
-- A table-by-table mapping from ERD entities into a relational schema.
+- A table-by-table mapping from ERD entities into a relational schema — provide a detailed specification for each table (columns, types, constraints, defaults), followed by the visual diagram to show the interconnection.
 - Column names, data types, nullability, and default values.
 - Primary keys, candidate keys, and unique constraints.
 - Foreign key definitions referencing parent tables.
 - Key constraints and check constraints.
 - Index recommendations.
+- **Linking Strategy:** This is the stage to brainstorm and introduce linking attributes. Transform the ERD relationship lines into physical Foreign Key columns based on the full attribute lists in the Spec.
+- **Logical Schema Diagram:** Include a Mermaid `erDiagram` diagram that differs from the conceptual ERD by showing physical details: SQL Server data types (e.g., `int`, `nvarchar`, `datetime2`), and constraint markers (`PK`, `FK`, `UK`). This diagram visually documents the interconnection of all tables.
 
 ---
 
@@ -235,6 +260,8 @@ Use Microsoft SQL Server syntax unless the user specifies another DBMS.
 
 - Same space cannot have two approved bookings with overlapping time periods.
 - A space under maintenance, temporarily closed, or retired cannot be booked.
+- Booking Decision has a 1-N relationship with Booking to preserve audit history.
+- The following attributes are mandatory for Step 1 analysis: `problem_category` (Maintenance), `booking_type`, `cancelled_at`, `cancel_reason` (Booking), and `note` (Space Facility).
 - Booking approval/rejection stores deciding staff, decision time, decision note, and a **rejection reason** when rejected.
 - Check-in records actual start time, checked-in-by, and initial condition.
 - Completion/check-out records actual end time, final condition, and usage notes.
