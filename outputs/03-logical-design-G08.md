@@ -225,7 +225,7 @@ erDiagram
 | `decision` | NVARCHAR(10) | `NOT NULL`, `CHECK (decision IN ('Approved', 'Rejected'))` | Approval or rejection |
 | `decision_time` | DATETIME2 | `NOT NULL`, `DEFAULT GETDATE()` | When the decision was made |
 | `decision_note` | NVARCHAR(MAX) | `NULL` | Optional note explaining the decision |
-| `rejection_reason` | NVARCHAR(MAX) | `NULL` | Required when decision = 'Rejected' |
+| `rejection_reason` | NVARCHAR(MAX) | `NULL`, `CHECK (decision <> 'Rejected' OR rejection_reason IS NOT NULL)` | Required when decision = 'Rejected' |
 
 ### 3.8 usage_sessions
 
@@ -236,7 +236,7 @@ erDiagram
 | `checked_in_by` | INT | `NOT NULL`, `FOREIGN KEY REFERENCES user_accounts(user_id)` | Visitor ID — staff who checked in |
 | `actual_start_time` | DATETIME2 | `NOT NULL` | Actual check-in time |
 | `initial_condition` | NVARCHAR(MAX) | `NULL` | Space condition at check-in |
-| `completed_by` | INT | `NULL`, `FOREIGN KEY REFERENCES user_accounts(user_id)` | Visitor ID — staff who completed |
+| `completed_by` | INT | `NULL`, `FOREIGN KEY REFERENCES user_accounts(user_id)`, `CHECK ((completed_by IS NULL AND actual_end_time IS NULL) OR (completed_by IS NOT NULL AND actual_end_time IS NOT NULL))` | Visitor ID — staff who completed |
 | `actual_end_time` | DATETIME2 | `NULL`, `CHECK (actual_end_time IS NULL OR actual_end_time > actual_start_time)` | Actual check-out time |
 | `final_condition` | NVARCHAR(MAX) | `NULL` | Space condition at check-out |
 | `usage_notes` | NVARCHAR(MAX) | `NULL` | Notes from staff about the session |
@@ -315,7 +315,9 @@ This table traces each Crow's Foot relationship line from the conceptual ERD to 
 | `bookings` | `booking_type IN (...)` | Booking type whitelist |
 | `bookings` | `status IN (...)` | Status whitelist |
 | `booking_decisions` | `decision IN ('Approved', 'Rejected')` | Decision values |
+| `booking_decisions` | `decision <> 'Rejected' OR rejection_reason IS NOT NULL` | Rejection reason required when rejected |
 | `usage_sessions` | `actual_end_time IS NULL OR actual_end_time > actual_start_time` | Valid time range |
+| `usage_sessions` | `(completed_by IS NULL AND actual_end_time IS NULL) OR (completed_by IS NOT NULL AND actual_end_time IS NOT NULL)` | Paired null check for completion fields |
 | `maintenance_records` | `problem_category IN (...)` | Category whitelist |
 | `maintenance_records` | `status IN (...)` | Status whitelist |
 | `maintenance_records` | `completion_time IS NULL OR completion_time > start_time` | Valid time range |
