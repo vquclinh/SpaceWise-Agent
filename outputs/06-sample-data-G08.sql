@@ -124,12 +124,12 @@ INSERT INTO space_facilities (space_id, facility_id, quantity, condition, note) 
 
 INSERT INTO bookings (requester_id, space_id, requested_start_time, requested_end_time, purpose, expected_participants, booking_type, status, cancelled_at, cancel_reason)
 VALUES
-    -- 1: Student A → A1-101 (Auditorium) — Approved, past, completed session exists
+    -- 1: Student A → A1-101 (Auditorium) — Completed, past (has a completed usage session)
     (1, 1,
      DATEADD(day, -11, DATEADD(hour, 8,  GETDATE())),   -- 2026-06-15 08:00
      DATEADD(day, -11, DATEADD(hour, 10, GETDATE())),   -- 2026-06-15 10:00
      N'Database lecture for second-year CS students covering normalization and indexing.',
-     150, N'Lecture', N'Approved', NULL, NULL),
+     150, N'Lecture', N'Completed', NULL, NULL),
 
     -- 2: Student A → A1-102 (Computer Lab) — Approved, future
     (1, 2,
@@ -145,12 +145,12 @@ VALUES
      N'Group study session for final exam preparation. Need whiteboard for problem solving.',
      8, N'Meeting', N'Pending', NULL, NULL),
 
-    -- 4: Lecturer C → B1-101 (Physics Lab) — Approved, past, completed session exists
+    -- 4: Lecturer C → B1-101 (Physics Lab) — Completed, past (has a completed usage session)
     (3, 4,
      DATEADD(day, -14, DATEADD(hour, 13, GETDATE())),   -- 2026-06-12 13:00
      DATEADD(day, -14, DATEADD(hour, 15, GETDATE())),   -- 2026-06-12 15:00
      N'Physics experiment on electromagnetism. Requires lab equipment and workstations.',
-     25, N'ProjectWork', N'Approved', NULL, NULL),
+     25, N'ProjectWork', N'Completed', NULL, NULL),
 
     -- 5: Lecturer D → B1-102 (Classroom) — Rejected
     (4, 5,
@@ -244,7 +244,7 @@ VALUES
      N'Cannot accommodate guest lecture at this time.',
      N'B1-102 is already reserved for departmental examination preparation on that date.'),
 
-    -- Booking #7 (A1-102, TA H) → Approved by Facility Manager F
+    -- Booking #8 (B1-102, Student B, CheckedIn) → Approved by Facility Manager F
     (8, 6, N'Approved',
      DATEADD(day, -13, DATEADD(hour, 11, GETDATE())),   -- 2026-06-13 11:00
      N'Approved for student activity.',
