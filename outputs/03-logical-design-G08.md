@@ -400,8 +400,11 @@ BEGIN
 END
 ```
 
-### Tradeoff Note
+### Selected Strategy
 
-For this project, the recommended approach is to implement both rules via `INSTEAD OF` triggers on the `bookings` table. This provides centralized enforcement without requiring application-level logic. The triggers would:
-- On `INSERT`/`UPDATE` of status to `'Approved'`: check for overlapping approved bookings AND check space availability.
-- On `INSERT`/`UPDATE` of `space_id`: check space availability.
+For this project, the accepted implementation (see Output 05) is a single **gated `AFTER INSERT, UPDATE` trigger** on `bookings` that enforces both rules:
+- **Overlap check** applies only to rows that are or become `Approved`: it rejects a new/updated `Approved` booking that overlaps an existing `Approved` booking for the same space.
+- **Unavailable-space check** applies only when a booking is placed into an active state (`Pending` or `Approved`); lifecycle updates such as `Completed`, `Cancelled`, or `NoShow` are **not** blocked merely because the space later became unavailable.
+- On a violation the trigger rolls back the statement and raises an error.
+
+An `AFTER` trigger is preferred over `INSTEAD OF` here because it keeps `IDENTITY` / `SCOPE_IDENTITY()` working and avoids manually re-implementing the INSERT/UPDATE. `INSTEAD OF` triggers, transaction-scoped stored procedures, or application-layer checks remain valid **alternative** strategies with different tradeoffs (e.g. `INSTEAD OF` validates before the write but breaks `SCOPE_IDENTITY()`).

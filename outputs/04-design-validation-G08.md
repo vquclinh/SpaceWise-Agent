@@ -52,7 +52,7 @@ Each entity's Home ID (primary identifier from Step 2 narrative) has become the 
 
 | Business Rule (Output 01) | Enforcement Mechanism | Location |
 |---|---|---|
-| **1. No overlapping approved bookings** | `INSTEAD OF` trigger on `bookings` that checks `(NewStart < ExistingEnd) AND (NewEnd > ExistingStart)` for Approved bookings on the same space | Section 7 of Output 03 |
+| **1. No overlapping approved bookings** | Gated `AFTER INSERT, UPDATE` trigger on `bookings` that, for rows that are/become `Approved`, rejects `(NewStart < ExistingEnd) AND (NewEnd > ExistingStart)` against existing `Approved` bookings for the same space | Section 7 of Output 03; implemented in Output 05 |
 | **2. No booking unavailable spaces** | Application or trigger logic that checks `spaces.current_status NOT IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')` before approving | Section 7 of Output 03 |
 | **User-department association** | `FOREIGN KEY` on `user_accounts.department_id → departments.department_id` with `NOT NULL` | `user_accounts` table definition |
 | **Booking lifecycle** | `CHECK` constraint on `bookings.status IN ('Pending', 'Approved', 'Rejected', 'Cancelled', 'CheckedIn', 'Completed', 'NoShow')` | `bookings` table definition |
@@ -119,7 +119,7 @@ A standard `CHECK` constraint operates on a single row only. It cannot compare t
 
 ### Strategy
 
-The logical design (Output 03, Section 7) specifies an `INSTEAD OF INSERT, UPDATE` trigger on `bookings` that enforces the no-overlap rule mathematically.
+The accepted implementation (Output 05) is a single **gated `AFTER INSERT, UPDATE` trigger** on `bookings`. An `AFTER` trigger is used rather than `INSTEAD OF` so that `IDENTITY` / `SCOPE_IDENTITY()` keep working and the INSERT/UPDATE does not have to be manually re-implemented; on a violation the trigger rolls back the statement and raises an error. The overlap check is **gated** so it only fires for rows that are (or become) `Approved`.
 
 **Overlap Detection Logic:**
 
@@ -128,38 +128,30 @@ Two time ranges `[start1, end1)` and `[start2, end2)` overlap when:
 start1 < end2 AND end1 > start2
 ```
 
-**Trigger Pseudocode:**
+**Validation pseudocode** (strategy summary — *not* final DDL; the executable trigger lives in Output 05):
 
 ```sql
-CREATE TRIGGER TR_bookings_PreventOverlap
-ON bookings
-INSTEAD OF INSERT, UPDATE
-AS
+-- AFTER INSERT, UPDATE on bookings
+-- Overlap rule applies only to rows that are (now) Approved.
+IF EXISTS (
+    SELECT 1
+    FROM inserted i
+    JOIN bookings b
+        ON  b.space_id = i.space_id
+        AND b.booking_id <> i.booking_id
+        AND b.status = 'Approved'
+        AND b.requested_start_time < i.requested_end_time
+        AND b.requested_end_time   > i.requested_start_time
+    WHERE i.status = 'Approved'
+)
 BEGIN
-    -- Reject the operation if any approved booking already exists
-    -- for the same space with overlapping time
-    IF EXISTS (
-        SELECT 1
-        FROM bookings b
-        INNER JOIN inserted i
-            ON b.space_id = i.space_id
-            AND b.booking_id <> i.booking_id
-            AND b.status = 'Approved'
-            AND b.requested_start_time < i.requested_end_time
-            AND b.requested_end_time > i.requested_start_time
-    )
-    BEGIN
-        THROW 50001, 'Overlapping approved booking exists for this space.', 1;
-    END
-
-    -- If no conflict, proceed with the insert/update
-    INSERT INTO bookings SELECT * FROM inserted
-    WHERE NOT EXISTS (SELECT 1 FROM deleted);  -- INSERT branch
-    -- UPDATE branch handled similarly with INSTEAD OF logic
-END;
+    ROLLBACK TRANSACTION;
+    RAISERROR('Overlapping approved booking exists for this space.', 16, 1);
+    RETURN;
+END
 ```
 
-**Tradeoff Note:** This trigger approach provides database-level integrity but may impact write throughput under high concurrency. For production use with heavy load, application-level locking or serializable transactions should be considered.
+**Tradeoff Note:** The gated `AFTER` trigger provides database-level integrity while leaving normal lifecycle updates (e.g. `Completed`, `Cancelled`, `NoShow`) unaffected. `INSTEAD OF` triggers, transaction-scoped stored procedures, or application-level locking remain valid alternatives with different tradeoffs (e.g. `INSTEAD OF` validates before the write but breaks `SCOPE_IDENTITY()`).
 
 ## 5. Status-Based Booking Prevention Validation
 
@@ -177,16 +169,19 @@ The logical design covers this through a combination of:
    ```
    This ensures only valid status values are stored. The `DEFAULT 'Available'` ensures new spaces start bookable.
 
-2. **Trigger/application cross-reference:**
-   Before approving a booking (or before inserting a new booking request), the system must verify `spaces.current_status`:
+2. **Gated availability check (part of the same `AFTER INSERT, UPDATE` trigger):**
+   When a booking is placed into an active state (`status IN ('Pending','Approved')`), the trigger verifies `spaces.current_status`. Lifecycle updates such as `Completed`/`Cancelled`/`NoShow` are not blocked. Validation pseudocode (*not* final DDL — see Output 05):
    ```sql
    IF EXISTS (
-       SELECT 1 FROM spaces s
-       INNER JOIN inserted i ON s.space_id = i.space_id
-       WHERE s.current_status IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')
+       SELECT 1 FROM inserted i
+       JOIN spaces s ON s.space_id = i.space_id
+       WHERE i.status IN ('Pending', 'Approved')
+         AND s.current_status IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')
    )
    BEGIN
-       THROW 50002, 'Selected space is not available for booking.', 1;
+       ROLLBACK TRANSACTION;
+       RAISERROR('Selected space is not available for booking.', 16, 1);
+       RETURN;
    END
    ```
 

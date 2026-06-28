@@ -18,7 +18,7 @@ Detail how all rules identified in Step 1 are actively enforced via table struct
 Confirm the schema satisfies 3NF: All attributes are atomic (1NF), all non-key attributes depend on the entire primary key (2NF), and there are no transitive dependencies (3NF).
 
 **4. Overlap Conflict Prevention Logic**
-Explain that a standard `CHECK` constraint cannot compare multiple rows. Document the strategy to enforce this via an `INSTEAD OF` or `AFTER` trigger on `bookings` that mathematically blocks `(NewStart < ExistingEnd) AND (NewEnd > ExistingStart)` when the status is `Approved`.
+Explain that a standard `CHECK` constraint cannot compare multiple rows. Document the cross-row enforcement strategy (a trigger, stored procedure, or application-layer validation) that blocks `(NewStart < ExistingEnd) AND (NewEnd > ExistingStart)` for `Approved` bookings on the same space. **The strategy you describe must match the accepted DDL in Output 05** — if Output 05 uses a gated `AFTER INSERT, UPDATE` trigger, describe that; `INSTEAD OF` may be noted only as an alternative tradeoff. Do not paste Output 05's full trigger body or its trigger name here.
 
 **5. Status-Based Booking Prevention Validation**
 Document how the system explicitly rejects bookings if the target space is `UnderMaintenance`, `TemporarilyClosed`, or `Retired` by cross-referencing `spaces.current_status`.

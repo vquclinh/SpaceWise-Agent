@@ -277,6 +277,15 @@ Every generation/refinement/validation/test audit (see `AGENTS.md` section 7 and
 - **The improvement classification** of the fix: output refinement · AGENTS.md improvement · SKILL.md improvement · command improvement · validation/test improvement · documentation improvement · no agent/skill/command change needed.
 - **Validation results** and **remaining risks.**
 
+## Cross-Step Output Consistency
+
+The Phase 1 outputs (01–07) must stay mutually consistent. In particular, when an **accepted downstream output changes an implementation strategy**, the earlier design/validation documents that describe that strategy must be synchronized:
+
+- A later review must not leave outdated enforcement strategies in earlier outputs (e.g. Output 04 describing an `INSTEAD OF` trigger while Output 05 implements a gated `AFTER` trigger).
+- Derive the documented strategy from the **current accepted outputs and audits**, not from a fixed template.
+- Do **not** hard-code a specific trigger type, trigger name, or full trigger body into any skill; describe the strategy generally and let the actual output supply the concrete implementation.
+- Cross-row / cross-table rules may be enforced by triggers, stored procedures, or application-layer validation; whichever the accepted DDL (Output 05) uses is the one the design/validation docs should describe, with alternatives noted as tradeoffs only.
+
 ## Design Rules
 
 - Record assumptions explicitly.
