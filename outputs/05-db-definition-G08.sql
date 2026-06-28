@@ -5,7 +5,10 @@
 -- =============================================================================
 
 -- This script creates the 9 tables, constraints, indexes, and triggers
--- for the SpaceWise system. Run on a fresh database in a single batch.
+-- for the SpaceWise system. Run on a fresh SQL Server database using SSMS,
+-- Azure Data Studio, or sqlcmd. GO batch separators are used after each table
+-- definition and before/after trigger definitions for easier debugging and
+-- SQL Server batch compatibility.
 
 -- =============================================================================
 -- 1. TABLE: departments
@@ -16,6 +19,7 @@ CREATE TABLE departments (
     department_name NVARCHAR(100) NOT NULL,
     CONSTRAINT PK_departments PRIMARY KEY (department_id)
 );
+GO
 
 -- =============================================================================
 -- 2. TABLE: user_accounts
@@ -43,6 +47,7 @@ CREATE TABLE user_accounts (
         account_status IN ('Active', 'Inactive', 'Suspended')
     )
 );
+GO
 
 -- =============================================================================
 -- 3. TABLE: spaces
@@ -73,6 +78,7 @@ CREATE TABLE spaces (
                            'TemporarilyClosed', 'Retired')
     )
 );
+GO
 
 -- =============================================================================
 -- 4. TABLE: facilities
@@ -85,6 +91,7 @@ CREATE TABLE facilities (
     CONSTRAINT PK_facilities PRIMARY KEY (facility_id),
     CONSTRAINT UQ_facilities_facility_name UNIQUE (facility_name)
 );
+GO
 
 -- =============================================================================
 -- 5. TABLE: space_facilities (Junction)
@@ -103,6 +110,7 @@ CREATE TABLE space_facilities (
         REFERENCES facilities(facility_id),
     CONSTRAINT CK_space_facilities_quantity CHECK (quantity >= 0)
 );
+GO
 
 -- =============================================================================
 -- 6. TABLE: bookings
@@ -141,6 +149,7 @@ CREATE TABLE bookings (
                    'CheckedIn', 'Completed', 'NoShow')
     )
 );
+GO
 
 -- =============================================================================
 -- 7. TABLE: booking_decisions
@@ -167,6 +176,7 @@ CREATE TABLE booking_decisions (
         decision <> 'Rejected' OR rejection_reason IS NOT NULL
     )
 );
+GO
 
 -- =============================================================================
 -- 8. TABLE: usage_sessions
@@ -200,6 +210,7 @@ CREATE TABLE usage_sessions (
         actual_end_time IS NULL OR actual_end_time > actual_start_time
     )
 );
+GO
 
 -- =============================================================================
 -- 9. TABLE: maintenance_records
@@ -236,6 +247,7 @@ CREATE TABLE maintenance_records (
         completion_time IS NULL OR completion_time > start_time
     )
 );
+GO
 
 -- =============================================================================
 -- INDEXES
@@ -276,83 +288,71 @@ CREATE INDEX IX_space_facilities_facility_id ON space_facilities (facility_id);
 -- TRIGGER: TR_bookings_PreventOverlapAndUnavailable
 --
 -- Enforces two critical business rules:
---   1. No overlapping approved bookings for the same space.
---   2. A space under maintenance, temporarily closed, or retired
---      cannot be booked.
+--   1. No two APPROVED bookings may overlap in time for the same space.
+--   2. A booking cannot be PLACED or APPROVED for a space that is
+--      under maintenance, temporarily closed, or retired.
 --
--- Implemented as an INSTEAD OF trigger so that validation happens before
--- the row is written, and only valid modifications proceed.
+-- Implemented as an AFTER trigger (not INSTEAD OF) so that:
+--   * IDENTITY and SCOPE_IDENTITY() keep working for callers, and
+--   * normal lifecycle updates (cancel, complete, no-show) are NOT blocked
+--     just because the space later became unavailable.
+-- A failed check rolls back the statement and raises an error (RAISERROR).
+--
+-- NOTE: CREATE TRIGGER must be the FIRST statement in its batch, so a GO
+-- separator precedes it (and follows it).
 -- ---------------------------------------------------------------------------
+GO
 
 CREATE TRIGGER TR_bookings_PreventOverlapAndUnavailable
 ON bookings
-INSTEAD OF INSERT, UPDATE
+AFTER INSERT, UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @now DATETIME2 = GETDATE();
-
-    -- Rule 1: Prevent overlapping approved bookings
-    -- Two time ranges [s1, e1) and [s2, e2) overlap when s1 < e2 AND e1 > s2
-    IF EXISTS (
-        SELECT 1
-        FROM bookings b
-        INNER JOIN inserted i
-            ON b.space_id = i.space_id
-            AND b.booking_id <> i.booking_id
-            AND b.status = 'Approved'
-            AND b.requested_start_time < i.requested_end_time
-            AND b.requested_end_time > i.requested_start_time
-    )
-    BEGIN
-        THROW 50001, 'Overlapping approved booking exists for this space.', 1;
-    END
-
-    -- Rule 2: Prevent booking an unavailable space
+    -- Rule 1: only enforced for rows that are (now) Approved.
+    -- Two ranges [s1, e1) and [s2, e2) overlap when s1 < e2 AND e1 > s2.
     IF EXISTS (
         SELECT 1
         FROM inserted i
-        INNER JOIN spaces s ON i.space_id = s.space_id
-        WHERE s.current_status IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')
+        INNER JOIN bookings b
+            ON  b.space_id = i.space_id
+            AND b.booking_id <> i.booking_id
+            AND b.status = 'Approved'
+            AND b.requested_start_time < i.requested_end_time
+            AND b.requested_end_time   > i.requested_start_time
+        WHERE i.status = 'Approved'
     )
     BEGIN
-        THROW 50002, 'Selected space is not available for booking.', 1;
+        ROLLBACK TRANSACTION;
+        RAISERROR('Overlapping approved booking exists for this space.', 16, 1);
+        RETURN;
     END
 
-    -- Validation passed — perform the actual operation
+    -- Rule 2: only enforced when the booking is being placed into an ACTIVE
+    -- state (Pending or Approved). Cancel/Complete/NoShow updates are allowed
+    -- even if the space later became unavailable.
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        INNER JOIN spaces s ON s.space_id = i.space_id
+        WHERE i.status IN ('Pending', 'Approved')
+          AND s.current_status IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')
+    )
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RAISERROR('Selected space is not available for booking.', 16, 1);
+        RETURN;
+    END
+
+    -- Keep updated_at fresh on UPDATE only. RECURSIVE_TRIGGERS is OFF by
+    -- default, so this self-update does not re-fire the trigger.
     IF EXISTS (SELECT 1 FROM deleted)
     BEGIN
-        -- UPDATE branch: apply changes, refresh updated_at
         UPDATE b
-        SET
-            requester_id           = i.requester_id,
-            space_id               = i.space_id,
-            requested_start_time   = i.requested_start_time,
-            requested_end_time     = i.requested_end_time,
-            purpose                = i.purpose,
-            expected_participants  = i.expected_participants,
-            booking_type           = i.booking_type,
-            status                 = i.status,
-            cancelled_at           = i.cancelled_at,
-            cancel_reason          = i.cancel_reason,
-            updated_at             = @now
+        SET updated_at = GETDATE()
         FROM bookings b
         INNER JOIN inserted i ON b.booking_id = i.booking_id;
-    END
-    ELSE
-    BEGIN
-        -- INSERT branch: identity PK auto-generates
-        INSERT INTO bookings (
-            requester_id, space_id, requested_start_time, requested_end_time,
-            purpose, expected_participants, booking_type, status,
-            cancelled_at, cancel_reason, created_at, updated_at
-        )
-        SELECT
-            requester_id, space_id, requested_start_time, requested_end_time,
-            purpose, expected_participants, booking_type, status,
-            cancelled_at, cancel_reason, @now, @now
-        FROM inserted;
     END
 END;
 GO
