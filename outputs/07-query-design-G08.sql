@@ -308,3 +308,157 @@ GO
 -- =====================================================================
 -- END MEMBER SECTION: 24125085
 -- =====================================================================
+
+-- =====================================================================
+-- BEGIN MEMBER SECTION: 24125080
+-- Member: Huỳnh Lê Bảo Thi (24125080)
+-- Target user perspective: Lecturer, Teaching Assistant, Student
+-- Query type plan (resolved target user(s) per type):
+--   1. [Lecturer] upcoming approved bookings
+--   2. [Lecturer] schedule by date range
+--   3. [Teaching Assistant] assisted session schedule
+--   4. [Teaching Assistant] check-in support list
+--   5. [Student] booking status tracking
+-- =====================================================================
+
+-- Query 1: Upcoming Approved Bookings for a Lecturer
+-- Query type: upcoming approved bookings
+-- Business question: What future approved bookings does a specific lecturer have, with space and scheduling details?
+-- Target user(s): Lecturer
+-- Why this query is useful: Gives lecturers a clear view of their confirmed upcoming sessions for planning and preparation.
+DECLARE @lecturer_id INT = 3;
+
+SELECT
+    b.booking_id,
+    s.space_code,
+    s.space_name,
+    s.building,
+    s.room_number,
+    b.requested_start_time,
+    b.requested_end_time,
+    b.booking_type,
+    b.purpose,
+    b.expected_participants
+FROM bookings b
+INNER JOIN spaces s ON s.space_id = b.space_id
+WHERE b.requester_id = @lecturer_id
+  AND b.status = 'Approved'
+  AND b.requested_start_time > GETDATE()
+ORDER BY b.requested_start_time;
+GO
+
+-- Query 2: Lecturer Schedule by Date Range
+-- Query type: schedule by date range
+-- Business question: What is a lecturer's complete booking schedule within a specific date range, across all booking statuses?
+-- Target user(s): Lecturer
+-- Why this query is useful: Enables lecturers to review all their bookings within a semester window for planning across a term.
+DECLARE @lecturer_id_2 INT = 4;
+DECLARE @start_date DATETIME2 = '2026-06-01 00:00:00';
+DECLARE @end_date   DATETIME2 = '2026-08-31 00:00:00';
+
+SELECT
+    b.booking_id,
+    s.space_code,
+    s.space_name,
+    s.building,
+    s.room_number,
+    b.requested_start_time,
+    b.requested_end_time,
+    b.status,
+    b.booking_type,
+    b.purpose
+FROM bookings b
+INNER JOIN spaces s ON s.space_id = b.space_id
+WHERE b.requester_id = @lecturer_id_2
+  AND b.requested_start_time >= @start_date
+  AND b.requested_start_time  < @end_date
+ORDER BY b.requested_start_time;
+GO
+
+-- Query 3: Upcoming Assisted Session Schedule Summary
+-- Query type: assisted session schedule
+-- Business question: How many upcoming approved sessions of each booking type are available for TA assistance, grouped by type with participant totals and date ranges?
+-- Target user(s): Teaching Assistant
+-- Why this query is useful: Helps TAs identify which upcoming sessions need assistance and prioritise workload by session type.
+SELECT
+    b.booking_type,
+    COUNT(*)                                           AS session_count,
+    SUM(b.expected_participants)                       AS total_participants,
+    MIN(b.requested_start_time)                        AS earliest_session,
+    MAX(b.requested_start_time)                        AS latest_session
+FROM bookings b
+INNER JOIN spaces s ON s.space_id = b.space_id
+WHERE b.status = 'Approved'
+  AND b.requested_start_time > GETDATE()
+  AND b.booking_type IN ('Lecture', 'Seminar', 'Workshop', 'ProjectWork')
+GROUP BY b.booking_type
+ORDER BY b.booking_type;
+GO
+
+-- Query 4: Today's Check-In Support Candidates
+-- Query type: check-in support list
+-- Business question: Which approved bookings scheduled for today have not yet been checked in and need someone to start the session?
+-- Target user(s): Teaching Assistant
+-- Why this query is useful: Lists today's sessions requiring check-in support so TAs can assist staff. May return zero rows when all today's approved bookings are already checked in.
+SELECT
+    b.booking_id,
+    u.full_name                                        AS requester_name,
+    u.role                                             AS requester_role,
+    s.space_code,
+    s.space_name,
+    s.building,
+    s.room_number,
+    b.requested_start_time,
+    b.requested_end_time,
+    b.booking_type,
+    b.expected_participants
+FROM bookings b
+INNER JOIN user_accounts u ON u.user_id = b.requester_id
+INNER JOIN spaces s        ON s.space_id = b.space_id
+WHERE b.status = 'Approved'
+  AND CAST(b.requested_start_time AS DATE) = CAST(GETDATE() AS DATE)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM usage_sessions us
+      WHERE us.booking_id = b.booking_id
+  )
+ORDER BY b.requested_start_time;
+GO
+
+-- Query 5: Booking Status Tracking for a Student
+-- Query type: booking status tracking
+-- Business question: What is the current status and decision history of bookings made by a specific student?
+-- Target user(s): Student
+-- Why this query is useful: Enables students to track their booking compliance, understand outcomes, and identify follow-up actions needed.
+DECLARE @student_id INT = 1;
+
+SELECT
+    b.booking_id,
+    s.space_code,
+    s.space_name,
+    b.requested_start_time,
+    b.requested_end_time,
+    b.status,
+    b.booking_type,
+    bd.decision,
+    bd.rejection_reason,
+    CASE
+        WHEN b.status = 'Pending'   THEN 'Awaiting staff approval'
+        WHEN b.status = 'Approved'  THEN 'Confirmed — check in when session starts'
+        WHEN b.status = 'Rejected'  THEN 'Not approved — see reason'
+        WHEN b.status = 'Cancelled' THEN 'Cancelled — no further action'
+        WHEN b.status = 'CheckedIn' THEN 'Session in progress now'
+        WHEN b.status = 'Completed' THEN 'Session finished successfully'
+        WHEN b.status = 'NoShow'    THEN 'Missed — may affect future bookings'
+        ELSE b.status
+    END                                                  AS action_needed
+FROM bookings b
+INNER JOIN spaces s ON s.space_id = b.space_id
+LEFT JOIN booking_decisions bd ON bd.booking_id = b.booking_id
+WHERE b.requester_id = @student_id
+ORDER BY b.requested_start_time DESC;
+GO
+
+-- =====================================================================
+-- END MEMBER SECTION: 24125080
+-- =====================================================================
