@@ -57,20 +57,22 @@ Cover at least these required conceptual entities when supported by the source r
 
 ### 4. Identified Relationships
 
-Document all relationships conceptually — no FK columns. The following must be covered:
+Document all relationships conceptually — no FK columns. The following must be covered. **Each relationship must be stated bidirectionally** — both directions (parent-to-child and child-to-parent) must be explicitly described, not just one side.
 
-- UserAccount belongs to Department: 1-N
-- UserAccount requests Booking: 1-N
-- UserAccount makes BookingDecision: 1-N
-- Space is for Booking: 1-N
-- Space has Facility (via SpaceFacility junction): M-N
-- Booking has BookingDecision: 1-N (preserves full audit/decision history)
-- Booking results in UsageSession: 1-to-0..1
-- UserAccount checks in UsageSession: 1-N
-- UserAccount completes UsageSession: 1-N
-- Space undergoes MaintenanceRecord: 1-N
-- UserAccount reports MaintenanceRecord: 1-N
-- UserAccount is assigned to MaintenanceRecord: 1-N
+The following are the minimum required relationships. State each bidirectionally:
+
+- UserAccount ↔ Department: N:1 (a User belongs to one Department; a Department has many Users)
+- UserAccount ↔ Booking: 1:N (a User requests many Bookings; each Booking is requested by one User)
+- UserAccount ↔ BookingDecision: 1:N (a User acting as staff makes many Booking Decisions; each Booking Decision is made by one User)
+- Space ↔ Booking: 1:N (a Space is for many Bookings; each Booking is for one Space)
+- Space ↔ Facility (via SpaceFacility junction): M:N
+- Booking ↔ BookingDecision: 1:N (preserves full audit/decision history)
+- Booking ↔ UsageSession: 1-to-0..1 (a Booking may result in at most one Usage Session)
+- UserAccount ↔ UsageSession (checks in): 1:N (a User checks in many Usage Sessions; each Usage Session is checked in by one User)
+- UserAccount ↔ UsageSession (completes): 1:N (a User completes many Usage Sessions; each Usage Session is completed by one User)
+- Space ↔ MaintenanceRecord: 1:N (a Space undergoes many Maintenance Records; each Maintenance Record is for one Space)
+- UserAccount ↔ MaintenanceRecord (reports): 1:N (a User reports many Maintenance Records; each Maintenance Record is reported by one User)
+- UserAccount ↔ MaintenanceRecord (is assigned): 1:N (a User is assigned to many Maintenance Records; each Maintenance Record has one assigned User)
 
 ### 5. Process-Oriented Sub-Sections
 
@@ -100,7 +102,15 @@ Must include the two critical business rules verbatim:
 1. **No Overlapping Approved Bookings:** The same space cannot have two **approved** bookings with overlapping time periods.
 2. **No Booking Unavailable Spaces:** A space that is **under maintenance, temporarily closed, or retired** cannot be booked.
 
-Also document additional business rules as supported by the requirement. For each rule, **classify** it in a traceability matrix as one of:
+Additional business rules beyond the two critical ones must be documented as supported by the requirement. **At minimum, the following must be stated explicitly:**
+
+3. **Booking Lifecycle:** Bookings follow a distinct lifecycle (Pending → Approved/Rejected; Approved → Checked In → Completed or No-show). Cancelled bookings store a timestamp and reason.
+4. **Approval Documentation (Decision Audit Trail):** Every booking approval or rejection stores the deciding staff member, decision time, decision note, and a rejection reason when the booking is rejected.
+5. **Check-in Tracking:** Check-in records the actual start time, the staff member who checked it in, and the initial condition of the space.
+6. **Check-out / Completion Tracking:** Check-out records the actual end time, the final condition of the space, and usage notes.
+7. **Data Preservation:** Historical booking and maintenance records must be preserved (staff can view history, upcoming bookings, spaces under maintenance, and no-show bookings).
+
+For each rule (including the two critical ones), **classify** it in a traceability matrix as one of:
 
 - **Explicit** — stated verbatim in the official requirement.
 - **Inferred** — strongly implied by the domain logic but not stated explicitly.
@@ -145,7 +155,9 @@ After writing, verify:
 - [ ] BookingDecision is 1-N with Booking.
 - [ ] Booking-to-UsageSession is 1-to-0..1.
 - [ ] All three UserAccount-to-Session relationships are documented (checks in, completes, reports/assigned for maintenance).
-- [ ] UserAccount makes BookingDecision relationship is documented.
+- [ ] UserAccount makes BookingDecision relationship is documented, **stated bidirectionally**: A User makes many Booking Decisions, AND each Booking Decision is made by one User.
+- [ ] Every relationship in §4 is stated **bidirectionally** (both directions for each pair).
+- [ ] Check-in tracking is documented as an explicit business rule in §6 (actual start time, who checked in, initial condition).
 - [ ] `created_at` and `updated_at` appear on UserAccount, Space, Booking, MaintenanceRecord.
 - [ ] `booking_type`, `cancelled_at`, `cancel_reason` are covered in Booking.
 - [ ] `problem_category` is covered in MaintenanceRecord.

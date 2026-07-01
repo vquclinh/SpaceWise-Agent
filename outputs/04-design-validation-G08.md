@@ -1,265 +1,237 @@
 # Step 4: Design Validation for G08
 
-This document validates the logical database schema (Step 3, `03-logical-design-G08.md`) against the conceptual ERD (Step 2, `02-erd-design-G08.md`) and the business requirements (Step 1, `01-business-req-analysis-G08.md`).
-
 ## 1. ERD to Relational Schema Verification
 
-### Entity Mapping
+All 9 conceptual entities from the conceptual ERD (Step 2) successfully map to physical tables in the logical schema (Step 3):
 
-Every conceptual entity from Step 2 maps directly to exactly one table in Step 3:
-
-| Conceptual Entity (Output 02) | Logical Table (Output 03) | Status |
+| Conceptual Entity (Step 2) | Logical Table (Step 3) | Mapping Status |
 |---|---|---|
-| `Department` | `departments` | ✓ Fully mapped |
-| `UserAccount` | `user_accounts` | ✓ Fully mapped |
-| `Space` | `spaces` | ✓ Fully mapped |
-| `Facility` | `facilities` | ✓ Fully mapped |
-| `SpaceFacility` | `space_facilities` | ✓ Fully mapped (junction table with composite PK) |
-| `Booking` | `bookings` | ✓ Fully mapped |
-| `BookingDecision` | `booking_decisions` | ✓ Fully mapped |
-| `UsageSession` | `usage_sessions` | ✓ Fully mapped |
-| `MaintenanceRecord` | `maintenance_records` | ✓ Fully mapped |
+| Department | `departments` | Present |
+| UserAccount | `user_accounts` | Present |
+| Space | `spaces` | Present |
+| Facility | `facilities` | Present |
+| SpaceFacility | `space_facilities` | Present |
+| Booking | `bookings` | Present |
+| BookingDecision | `booking_decisions` | Present |
+| UsageSession | `usage_sessions` | Present |
+| MaintenanceRecord | `maintenance_records` | Present |
 
-**Result:** All 9 conceptual entities are accounted for in the logical schema.
+All 14 Crow's Foot relationship lines from the conceptual ERD are materialized as explicit Foreign Key columns:
 
-### Relationship-to-Foreign-Key Mapping
+| Relationship (Step 2) | FK Column | Referenced Table |
+|---|---|---|
+| Department → UserAccount | `user_accounts.department_id` | `departments` |
+| UserAccount → Booking (requests) | `bookings.requester_id` | `user_accounts` |
+| Space → Booking | `bookings.space_id` | `spaces` |
+| Booking → BookingDecision | `booking_decisions.booking_id` | `bookings` |
+| UserAccount → BookingDecision (decides) | `booking_decisions.decided_by` | `user_accounts` |
+| Booking → UsageSession | `usage_sessions.booking_id` | `bookings` |
+| UserAccount → UsageSession (checks in) | `usage_sessions.checked_in_by` | `user_accounts` |
+| UserAccount → UsageSession (completes) | `usage_sessions.completed_by` | `user_accounts` |
+| Space → SpaceFacility | `space_facilities.space_id` | `spaces` |
+| Facility → SpaceFacility | `space_facilities.facility_id` | `facilities` |
+| Space → MaintenanceRecord | `maintenance_records.space_id` | `spaces` |
+| UserAccount → MaintenanceRecord (reports) | `maintenance_records.reporter_id` | `user_accounts` |
+| UserAccount → MaintenanceRecord (assigned) | `maintenance_records.assigned_staff_id` | `user_accounts` |
 
-Every Crow's Foot relationship line from the conceptual ERD is materialized as an explicit Foreign Key column:
-
-| ERD Relationship (Output 02) | FK Column(s) (Output 03) | In Table | Cardinality Match |
-|---|---|---|---|
-| `Department \|\|--o{\| UserAccount` | `department_id` | `user_accounts` | ✓ 1-to-0..N |
-| `UserAccount \|\|--o{\| Booking` | `requester_id` | `bookings` | ✓ 1-to-0..N |
-| `Space \|\|--o{\| Booking` | `space_id` | `bookings` | ✓ 1-to-0..N |
-| `Booking \|\|--o{\| BookingDecision` | `booking_id` | `booking_decisions` | ✓ 1-to-0..N |
-| `UserAccount \|\|--o{\| BookingDecision` | `decided_by` | `booking_decisions` | ✓ 1-to-0..N |
-| `Booking \|\|--o\|\| UsageSession` | `booking_id` (UNIQUE) | `usage_sessions` | ✓ 1-to-0..1 (UNIQUE enforces at most one) |
-| `UserAccount \|\|--o{\| UsageSession` (checks in) | `checked_in_by` | `usage_sessions` | ✓ 1-to-0..N |
-| `UserAccount \|\|--o{\| UsageSession` (completes) | `completed_by` | `usage_sessions` | ✓ 1-to-0..N |
-| `Space \|\|--o{\| SpaceFacility` | `space_id` | `space_facilities` | ✓ 1-to-0..N (part of composite PK) |
-| `Facility \|\|--o{\| SpaceFacility` | `facility_id` | `space_facilities` | ✓ 1-to-0..N (part of composite PK) |
-| `Space \|\|--o{\| MaintenanceRecord` | `space_id` | `maintenance_records` | ✓ 1-to-0..N |
-| `UserAccount \|\|--o{\| MaintenanceRecord` (reports) | `reporter_id` | `maintenance_records` | ✓ 1-to-0..N |
-| `UserAccount \|\|--o{\| MaintenanceRecord` (assigned) | `assigned_staff_id` | `maintenance_records` | ✓ 1-to-0..N |
-
-**Result:** All 13 relationship lines are correctly and completely materialized. No Crow's Foot line is missing a corresponding FK column.
-
-### Home ID Rule Verification
-
-Each entity's Home ID (primary identifier from Step 2 narrative) has become the Primary Key in its corresponding table, and no Home ID appears as a Visitor ID in another table — the relationship lines alone represent those connections in the conceptual design.
+**Conclusion:** Entity-to-table mapping is complete (9/9), and relationship-to-FK mapping is complete (14/14). No conceptual element is lost.
 
 ## 2. Business Rules Addressed
 
-| Business Rule (Output 01) | Enforcement Mechanism | Location |
+| Rule # | Rule Description | Enforcement Mechanism |
 |---|---|---|
-| **1. No overlapping approved bookings** | Gated `AFTER INSERT, UPDATE` trigger on `bookings` that, for rows that are/become `Approved`, rejects `(NewStart < ExistingEnd) AND (NewEnd > ExistingStart)` against existing `Approved` bookings for the same space | Section 7 of Output 03; implemented in Output 05 |
-| **2. No booking unavailable spaces** | Application or trigger logic that checks `spaces.current_status NOT IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')` before approving | Section 7 of Output 03 |
-| **User-department association** | `FOREIGN KEY` on `user_accounts.department_id → departments.department_id` with `NOT NULL` | `user_accounts` table definition |
-| **Booking lifecycle** | `CHECK` constraint on `bookings.status IN ('Pending', 'Approved', 'Rejected', 'Cancelled', 'CheckedIn', 'Completed', 'NoShow')` | `bookings` table definition |
-| **Approval audit trail** | `booking_decisions` table stores `decided_by`, `decision_time`, `decision_note`. `rejection_reason` column is available for rejections | `booking_decisions` table definition |
-| **Usage tracking (check-in/check-out)** | `usage_sessions` table captures `actual_start_time`, `initial_condition`, `actual_end_time`, `final_condition`, `usage_notes` with FK to check-in and completion staff | `usage_sessions` table definition |
-| **Maintenance tracking** | `maintenance_records` table tracks problem, status, assignment, and completion with all required timestamps and notes | `maintenance_records` table definition |
-| **Capacity enforcement** | `CHECK` on `bookings.expected_participants > 0` (and cross-referencing `spaces.capacity` is enforced at the application level) | `bookings` table definition |
-| **Data preservation** | All core entities include `created_at` and `updated_at`; Foreign Keys with `NO ACTION` (default) restrict deletion of referenced master records | Multiple tables |
-| **Valid time ranges** | `CHECK (requested_end_time > requested_start_time)` on `bookings`; similar checks on `usage_sessions` and `maintenance_records` | `bookings`, `usage_sessions`, `maintenance_records` |
-
-**Result:** All identified business rules from Output 01 are addressed either through declarative constraints or through documented trigger/application logic.
+| 1 | No overlapping approved bookings | `AFTER INSERT, UPDATE` trigger checks overlap for Approved bookings on the same space |
+| 2 | Unavailable space cannot be booked | `AFTER INSERT, UPDATE` trigger blocks insert/update when space status is `UnderMaintenance`, `TemporarilyClosed`, or `Retired` for Pending/Approved bookings |
+| 3 | Booking lifecycle statuses | `CHECK` constraint `CK_bookings_status` whitelists valid statuses |
+| 4 | Requested end time after start time | `CHECK` constraint `CK_bookings_time_range` |
+| 5 | Positive expected participants | `CHECK` constraint `CK_bookings_expected_participants` |
+| 6 | Approval stores deciding staff, decision time, decision note, rejection reason | Columns `decided_by`, `decision_time`, `decision_note`, `rejection_reason` on `booking_decisions`; `CK_booking_decisions_rejection_reason` enforces rejection reason when `decision = 'Rejected'` |
+| 7 | Only staff can decide | Enforced at application layer (role-based access); schema stores FK to `user_accounts` as `decided_by` |
+| 8 | Check-in records actual start time, checked-in-by, initial condition | Columns `actual_start_time`, `checked_in_by`, `initial_condition` on `usage_sessions` |
+| 9 | Check-out records actual end time, final condition, usage notes | Columns `actual_end_time`, `completed_by`, `final_condition`, `usage_notes` on `usage_sessions` |
+| 10 | Only approved bookings can be checked in | Enforced at application layer; schema does not prevent inserting a `usage_sessions` row for any booking |
+| 11 | Only checked-in bookings can be completed | Enforced at application layer; schema relies on `CK_usage_sessions_completion` for paired null consistency |
+| 12 | Actual end time after actual start time | `CHECK` constraint `CK_usage_sessions_end_time` |
+| 13 | Active maintenance blocks booking | Enforced by the gated `AFTER INSERT, UPDATE` trigger (same trigger as Rule 1) — space with non-completed/cancelled maintenance is marked `UnderMaintenance` in `spaces.current_status` |
+| 14 | Maintenance references a space | `FK_maintenance_records_space_id` |
+| 15 | Historical records preserved | No `ON DELETE CASCADE` on any FK; records remain in `bookings`, `booking_decisions`, `usage_sessions`, `maintenance_records` indefinitely |
+| 16 | Capacity guideline | Columns exist (`capacity`, `expected_participants`) but no constraint enforces this — recorded as an open question |
+| 17 | Active account access control | `account_status` column with CHECK constraint; enforcement of which statuses can book is at application layer |
+| 18 | Overlap definition | Standard interval overlap logic used in trigger: `s1 < e2 AND e1 > s2` |
+| 19 | Booking refers to one space | `bookings.space_id` is a single non-nullable FK — exactly one space per booking |
+| 20 | created_at/updated_at metadata | Present on `user_accounts`, `spaces`, `bookings`, `maintenance_records` with `DEFAULT GETDATE()` |
 
 ## 3. Normalization Check (3NF)
 
-### First Normal Form (1NF)
+### 1NF (Atomicity)
 
-All columns contain atomic (scalar) values. No multi-valued attributes or repeating groups exist. Every table has a defined Primary Key.
+All table columns contain atomic values:
+- No multi-valued attributes exist in any table.
+- `space_facilities` resolves the M-N relationship between Space and Facility, eliminating the need for repeating groups.
+- Composite attributes (e.g., address) are decomposed into `building`, `floor`, `room_number`.
+- All array-like or list data is stored in separate related tables.
+- **Result:** Schema satisfies 1NF.
 
-- `departments`: 2 atomic columns ✓
-- `user_accounts`: 9 atomic columns ✓
-- `spaces`: 11 atomic columns ✓
-- `facilities`: 3 atomic columns ✓
-- `space_facilities`: 5 atomic columns, composite PK ✓
-- `bookings`: 13 atomic columns ✓
-- `booking_decisions`: 6 atomic columns ✓
-- `usage_sessions`: 9 atomic columns ✓
-- `maintenance_records`: 12 atomic columns ✓
+### 2NF (Full Functional Dependency)
 
-**1NF Status: ✓ Satisfied**
+Every non-key attribute depends on the entire primary key:
+- All tables with surrogate single-column PKs (8 of 9 tables) trivially satisfy 2NF — since the PK is a single column, any partial dependency is impossible.
+- The junction table `space_facilities` has a composite PK `(space_id, facility_id)`. Its non-key attributes (`quantity`, `condition`, `note`) depend on the full combination of space and facility (i.e., how many of a given facility are in a given space). There is no partial dependency on just `space_id` or just `facility_id`.
+- **Result:** Schema satisfies 2NF.
 
-### Second Normal Form (2NF)
+### 3NF (No Transitive Dependencies)
 
-All tables with single-column Primary Keys (surrogate `IDENTITY`) inherently satisfy 2NF — every non-key attribute depends on the full PK.
+No non-key attribute depends transitively on another non-key attribute:
+- `departments`: `department_name` depends directly on `department_id`.
+- `user_accounts`: All attributes depend on `user_id`. `department_id` is a FK (not a transitive dependency — it references a different entity's key).
+- `spaces`: All attributes depend on `space_id`. No non-key attribute determines another non-key attribute.
+- `facilities`: `facility_name` and `description` depend directly on `facility_id`.
+- `space_facilities`: `quantity`, `condition`, `note` depend on the composite PK (space + facility combination).
+- `bookings`: All attributes depend on `booking_id`. `requester_id` and `space_id` are FKs, not transitive dependencies.
+- `booking_decisions`: All attributes depend on `decision_id`. `booking_id` and `decided_by` are FKs.
+- `usage_sessions`: All attributes depend on `session_id`. `booking_id`, `checked_in_by`, `completed_by` are FKs.
+- `maintenance_records`: All attributes depend on `maintenance_id`. `space_id`, `reporter_id`, `assigned_staff_id` are FKs.
+- **Result:** Schema satisfies 3NF.
 
-The only table with a composite PK is `space_facilities` (`space_id`, `facility_id`). Its non-key attributes (`quantity`, `condition`, `note`) depend on the full composite key (a specific space AND a specific facility together), not on either component alone. This satisfies 2NF.
+### Overall Normalization Verdict
 
-**2NF Status: ✓ Satisfied**
-
-### Third Normal Form (3NF)
-
-No transitive dependencies exist:
-
-- `departments`: No non-key attributes besides `department_name` — no transitive dependency possible ✓
-- `user_accounts`: All non-key attributes (`email`, `full_name`, `phone_number`, `role`, `account_status`, `department_id`, `created_at`, `updated_at`) depend directly on `user_id`. `department_id` is a FK to a separate table, not a transitive dependency ✓
-- `spaces`: All attributes depend directly on `space_id`. `building`, `floor`, `room_number` are intrinsic space properties, not attributes of another entity carried through ✓
-- `facilities`: Only `facility_name` and `description` — directly dependent on `facility_id` ✓
-- `space_facilities`: `quantity`, `condition`, `note` depend on the full composite key ✓
-- `bookings`: All attributes depend directly on `booking_id`. No attribute depends on `requester_id` or `space_id` transitively ✓
-- `booking_decisions`: All attributes depend directly on `decision_id` ✓
-- `usage_sessions`: All attributes depend directly on `session_id` ✓
-- `maintenance_records`: All attributes depend directly on `maintenance_id` ✓
-
-**3NF Status: ✓ Satisfied**
-
-### Conclusion
-
-The logical schema fully satisfies Third Normal Form (3NF).
+The schema is fully normalized to **3NF**. No denormalization was necessary because the domain model is straightforward and the query patterns (booking history, space availability, maintenance tracking) are well served by the normalized structure with appropriate indexes.
 
 ## 4. Overlap Conflict Prevention Logic
 
-### Problem
+### Why a CHECK constraint is insufficient
 
-A standard `CHECK` constraint operates on a single row only. It cannot compare the new/updated row against existing rows in the table to detect overlapping time ranges.
+A standard `CHECK` constraint operates on a single row and cannot compare values across multiple rows. The overlap rule — no two Approved bookings for the same space with overlapping time ranges — requires cross-row comparison: `(NewStart < ExistingEnd) AND (NewEnd > ExistingStart)`. This cannot be expressed in a column-level or table-level CHECK constraint.
 
-### Strategy
+### Accepted strategy (matching Output 05 DDL)
 
-The accepted implementation (Output 05) is a single **gated `AFTER INSERT, UPDATE` trigger** on `bookings`. An `AFTER` trigger is used rather than `INSTEAD OF` so that `IDENTITY` / `SCOPE_IDENTITY()` keep working and the INSERT/UPDATE does not have to be manually re-implemented; on a violation the trigger rolls back the statement and raises an error. The overlap check is **gated** so it only fires for rows that are (or become) `Approved`.
+The accepted implementation is a single **gated `AFTER INSERT, UPDATE` trigger** on the `bookings` table. This trigger enforces two business rules in one pass:
 
-**Overlap Detection Logic:**
+1. **Overlap check** — Only fires for rows that are or have become `Approved`. It detects whether the inserted/updated row's time range overlaps any existing `Approved` booking for the same space (excluding itself).
 
-Two time ranges `[start1, end1)` and `[start2, end2)` overlap when:
-```
-start1 < end2 AND end1 > start2
-```
+2. **Unavailable-space check** — Fires when a booking is being placed into an active state (`Pending` or `Approved`). It rejects the operation if the referenced space's `current_status` is `UnderMaintenance`, `TemporarilyClosed`, or `Retired`. Lifecycle transitions such as `Cancelled`, `Completed`, or `NoShow` are not blocked even if the space later became unavailable.
 
-**Validation pseudocode** (strategy summary — *not* final DDL; the executable trigger lives in Output 05):
+The trigger uses `AFTER` (not `INSTEAD OF`) so that `IDENTITY` / `SCOPE_IDENTITY()` continue working for callers and normal DML operations are not disrupted. On violation, the trigger issues `ROLLBACK TRANSACTION` and `RAISERROR`.
 
-```sql
--- AFTER INSERT, UPDATE on bookings
--- Overlap rule applies only to rows that are (now) Approved.
-IF EXISTS (
-    SELECT 1
-    FROM inserted i
-    JOIN bookings b
-        ON  b.space_id = i.space_id
-        AND b.booking_id <> i.booking_id
-        AND b.status = 'Approved'
-        AND b.requested_start_time < i.requested_end_time
-        AND b.requested_end_time   > i.requested_start_time
-    WHERE i.status = 'Approved'
-)
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('Overlapping approved booking exists for this space.', 16, 1);
-    RETURN;
-END
-```
+### Alternative approaches considered
 
-**Tradeoff Note:** The gated `AFTER` trigger provides database-level integrity while leaving normal lifecycle updates (e.g. `Completed`, `Cancelled`, `NoShow`) unaffected. `INSTEAD OF` triggers, transaction-scoped stored procedures, or application-level locking remain valid alternatives with different tradeoffs (e.g. `INSTEAD OF` validates before the write but breaks `SCOPE_IDENTITY()`).
+- **INSTEAD OF trigger:** Valid alternative that validates before the write, but breaks `SCOPE_IDENTITY()` and requires manually re-implementing the INSERT/UPDATE logic.
+- **Stored procedure enforcement:** All writes go through a dedicated procedure that validates business rules before executing DML. Provides good encapsulation but relies on application discipline to use the procedure rather than direct INSERT/UPDATE.
+- **Application-layer enforcement:** Validation logic in the application code before sending SQL. Simplest to implement but can be bypassed if multiple clients connect directly to the database.
 
 ## 5. Status-Based Booking Prevention Validation
 
 ### Rule
 
-A space that is `UnderMaintenance`, `TemporarilyClosed`, or `Retired` cannot be booked. Only spaces with `current_status = 'Available'` are bookable.
+A booking cannot be placed or approved for a space whose `current_status` is `UnderMaintenance`, `TemporarilyClosed`, or `Retired`.
 
-### Enforcement Strategy
+### Implementation
 
-The logical design covers this through a combination of:
+The gated `AFTER INSERT, UPDATE` trigger cross-references the `spaces` table through the `space_id` FK. The check logic:
 
-1. **Status whitelist on `spaces.current_status`:**
-   ```sql
-   CHECK (current_status IN ('Available', 'InUse', 'UnderMaintenance', 'TemporarilyClosed', 'Retired'))
-   ```
-   This ensures only valid status values are stored. The `DEFAULT 'Available'` ensures new spaces start bookable.
+1. Joins `inserted` (the new/updated booking rows) with `spaces` on `space_id`.
+2. Filters for rows where `inserted.status IN ('Pending', 'Approved')` and `spaces.current_status IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')`.
+3. If any matching row is found, the trigger rolls back the transaction and raises an error.
 
-2. **Gated availability check (part of the same `AFTER INSERT, UPDATE` trigger):**
-   When a booking is placed into an active state (`status IN ('Pending','Approved')`), the trigger verifies `spaces.current_status`. Lifecycle updates such as `Completed`/`Cancelled`/`NoShow` are not blocked. Validation pseudocode (*not* final DDL — see Output 05):
-   ```sql
-   IF EXISTS (
-       SELECT 1 FROM inserted i
-       JOIN spaces s ON s.space_id = i.space_id
-       WHERE i.status IN ('Pending', 'Approved')
-         AND s.current_status IN ('UnderMaintenance', 'TemporarilyClosed', 'Retired')
-   )
-   BEGIN
-       ROLLBACK TRANSACTION;
-       RAISERROR('Selected space is not available for booking.', 16, 1);
-       RETURN;
-   END
-   ```
+### Edge cases handled
 
-3. **Index support:** `IX_spaces_current_status` ensures fast filtering when searching for available spaces.
+- **Status transitions that bypass the check:** Cancelling, completing, or marking a booking as No-show is always allowed regardless of the space's current status. This prevents a situation where an in-progress booking cannot be closed because maintenance started on the space.
+- **Non-active booking creation:** A booking inserted directly with `Rejected` or `Cancelled` status (e.g., as a historical import) is not blocked — the check only applies to `Pending` and `Approved` states.
+- **Space status changes after booking approval:** If a space's status changes to `UnderMaintenance` after a booking was already approved, the existing approved booking remains valid. The rule only blocks new or newly approved bookings.
 
-**Coverage:** The design guarantees that no booking can be created or approved for an unavailable space at the database level.
+### Visual flow
+
+```
+New/Updated Booking (INSERT/UPDATE on bookings)
+  │
+  ├── Is status 'Pending' or 'Approved'?
+  │     ├── Yes → Check spaces.current_status for the space
+  │     │           ├── 'UnderMaintenance' / 'TemporarilyClosed' / 'Retired'
+  │     │           │     → ROLLBACK, RAISERROR
+  │     │           └── 'Available' / 'InUse'
+  │     │                 → Proceed
+  │     └── No (Cancelled/Completed/NoShow/etc.) → Skip check, proceed
+  │
+  └── Is status 'Approved'?
+        ├── Yes → Check for overlapping Approved bookings on same space
+        │           ├── Overlap found → ROLLBACK, RAISERROR
+        │           └── No overlap → Proceed
+        └── No → Skip overlap check, proceed
+```
 
 ## 6. Referential Integrity Validation
 
-### Foreign Key Coverage
+### Foreign Key Constraints
 
-Every FK column in the schema references a valid Primary Key:
+All 13 Foreign Key constraints enforce strict referential integrity:
 
-| FK Column | References | On Delete | Rationale |
+| FK Constraint | Parent Table | Referenced Table | Effect on Deletion |
 |---|---|---|---|
-| `user_accounts.department_id` | `departments.department_id` | NO ACTION (default) | Prevent deletion of departments with active users |
-| `bookings.requester_id` | `user_accounts.user_id` | NO ACTION | Preserve historical bookings |
-| `bookings.space_id` | `spaces.space_id` | NO ACTION | Preserve booking history for retired spaces |
-| `booking_decisions.booking_id` | `bookings.booking_id` | NO ACTION | Preserve audit trail |
-| `booking_decisions.decided_by` | `user_accounts.user_id` | NO ACTION | Preserve decision attribution |
-| `usage_sessions.booking_id` | `bookings.booking_id` | NO ACTION | Preserve session history |
-| `usage_sessions.checked_in_by` | `user_accounts.user_id` | NO ACTION | Preserve check-in attribution |
-| `usage_sessions.completed_by` | `user_accounts.user_id` | NO ACTION | Preserve completion attribution (nullable) |
-| `space_facilities.space_id` | `spaces.space_id` | NO ACTION | Prevent orphan facility assignments |
-| `space_facilities.facility_id` | `facilities.facility_id` | NO ACTION | Prevent orphan space assignments |
-| `maintenance_records.space_id` | `spaces.space_id` | NO ACTION | Preserve maintenance history |
-| `maintenance_records.reporter_id` | `user_accounts.user_id` | NO ACTION | Preserve reporter attribution |
-| `maintenance_records.assigned_staff_id` | `user_accounts.user_id` | NO ACTION | Preserve assignment attribution (nullable) |
+| `FK_user_accounts_department_id` | `user_accounts` | `departments` | Restrict (default) |
+| `FK_bookings_requester_id` | `bookings` | `user_accounts` | Restrict |
+| `FK_bookings_space_id` | `bookings` | `spaces` | Restrict |
+| `FK_booking_decisions_booking_id` | `booking_decisions` | `bookings` | Restrict |
+| `FK_booking_decisions_decided_by` | `booking_decisions` | `user_accounts` | Restrict |
+| `FK_usage_sessions_booking_id` | `usage_sessions` | `bookings` | Restrict |
+| `FK_usage_sessions_checked_in_by` | `usage_sessions` | `user_accounts` | Restrict |
+| `FK_usage_sessions_completed_by` | `usage_sessions` | `user_accounts` | Restrict |
+| `FK_space_facilities_space_id` | `space_facilities` | `spaces` | Restrict |
+| `FK_space_facilities_facility_id` | `space_facilities` | `facilities` | Restrict |
+| `FK_maintenance_records_space_id` | `maintenance_records` | `spaces` | Restrict |
+| `FK_maintenance_records_reporter_id` | `maintenance_records` | `user_accounts` | Restrict |
+| `FK_maintenance_records_assigned_staff_id` | `maintenance_records` | `user_accounts` | Restrict |
 
-### UNIQUE Constraint on 1-to-0..1 Relationship
+All FKs use the default `NO ACTION` (restrict) on delete. No `ON DELETE CASCADE` is specified anywhere — this is intentional to preserve historical records. For example, deleting a `spaces` row is prevented if that space has past or future bookings, ensuring booking history remains intact.
 
-The `usage_sessions.booking_id` column carries a `UNIQUE` constraint, which guarantees that at most one usage session exists per booking. This enforces the conceptual 1-to-0..1 (one booking results in at most one session) relationship at the physical level. Without the `UNIQUE` constraint, the FK alone would permit many sessions per booking (a 1-to-0..N relationship).
+### UNIQUE Constraint for 1-to-0..1 Relationship
 
-### Nullable FK Columns
+The `UNIQUE` constraint on `usage_sessions.booking_id` (`UQ_usage_sessions_booking_id`) guarantees that each booking can have at most one usage session. This materializes the conceptual 1-to-0..1 relationship between Booking and UsageSession. Combined with the `NOT NULL` on `usage_sessions.booking_id` and the FK to `bookings`, this enforces:
+- Every usage session belongs to exactly one booking (FK + NOT NULL).
+- No two usage sessions can reference the same booking (UNIQUE).
+- A booking may have zero usage sessions (no row in `usage_sessions`).
 
-Two FK columns are nullable, correctly reflecting optional relationships:
+### Other UNIQUE Constraints
 
-- `usage_sessions.completed_by` — `NULL` until check-out occurs
-- `maintenance_records.assigned_staff_id` — `NULL` until a staff member is assigned
+| Table | Column | Purpose |
+|---|---|---|
+| `user_accounts` | `email` | Natural business identifier — prevents duplicate user registrations |
+| `spaces` | `space_code` | Business code — ensures each room/space has a unique code |
+| `facilities` | `facility_name` | Business identifier — prevents duplicate facility entries |
 
 ## 7. Identified Design Issues & Resolutions
 
-During the mapping process, the following structural considerations were evaluated:
+### Issue 1: Rejection Reason Mandatory on Rejection
 
-### Issue 1: BookingDecision 1-to-N (Not 1-to-1)
+**Problem:** During the mapping from conceptual to logical design, the `rejection_reason` attribute on BookingDecision could be optional for approvals but must be mandatory for rejections. Without a constraint, a staff member could reject a booking without providing a reason.
 
-- **Observation:** The conceptual design (Output 02) defines `Booking ||--o{ BookingDecision` as one-to-many, not one-to-one. This means a single booking can have multiple decision records.
-- **Rationale:** This design preserves a complete audit trail. If a booking is initially Rejected and then later re-evaluated and Approved (or vice versa), each decision is recorded. A 1-to-1 design would overwrite the previous decision.
-- **Resolution:** Accepted as designed. The 1-to-N relationship is correct for audit purposes. Application logic should read the most recent decision to determine the booking's current state.
+**Resolution:** A conditional `CHECK` constraint `CK_booking_decisions_rejection_reason` was added: `decision <> 'Rejected' OR rejection_reason IS NOT NULL`. This enforces that `rejection_reason` must be non-NULL when `decision = 'Rejected'`, while allowing it to be NULL when `decision = 'Approved'`.
 
-### Issue 2: `rejection_reason` — Conditional Requirement
+### Issue 2: Check-in / Check-out Completion Field Pairing
 
-- **Observation:** `booking_decisions.rejection_reason` is defined as `NVARCHAR(MAX) NULL`. However, business rule 3 requires a rejection reason when the decision is `'Rejected'`.
-- **Status:** Resolved in Output 03 by adding `CHECK (decision <> 'Rejected' OR rejection_reason IS NOT NULL)` to the `rejection_reason` column definition and the Check Constraints summary.
+**Problem:** The check-out fields (`completed_by`, `actual_end_time`, `final_condition`, `usage_notes`) should be either all NULL (session not yet completed) or all non-NULL (session completed). Without a constraint, partial updates could leave inconsistent data.
 
-### Issue 3: `completed_by` Nullable for Ongoing Sessions
+**Resolution:** A `CHECK` constraint `CK_usage_sessions_completion` enforces paired null consistency: `(completed_by IS NULL AND actual_end_time IS NULL) OR (completed_by IS NOT NULL AND actual_end_time IS NOT NULL)`. Note that `final_condition` and `usage_notes` are not included in this constraint — they are allowed to be NULL even after completion if the staff member chooses not to fill them, keeping the constraint targeted and practical.
 
-- **Observation:** `usage_sessions.completed_by` is defined as `INT NULL` with a FK to `user_accounts(user_id)`.
-- **Status:** Resolved in Output 03 by adding `CHECK ((completed_by IS NULL AND actual_end_time IS NULL) OR (completed_by IS NOT NULL AND actual_end_time IS NOT NULL))` to the `completed_by` column definition and the Check Constraints summary.
+### Issue 3: Overlap Detection Cannot Use CHECK
 
-### Issue 4: Booking Status Transitions
+**Problem:** The critical business rule "No overlapping approved bookings for the same space" requires cross-row comparison, which a standard CHECK constraint cannot perform.
 
-- **Observation:** The `bookings.status` `CHECK` constraint lists all valid statuses but does not enforce valid transition paths (e.g., `Pending → Approved → CheckedIn → Completed`). The constraint allows arbitrary jumps (e.g., `Pending → Completed`).
-- **Resolution:** This is an accepted limitation for Phase 1. Status transition logic is best handled at the application layer (or via a trigger in later phases). The constraint ensures only valid status values are stored, even if invalid transitions are technically possible at the database level.
+**Resolution:** An `AFTER INSERT, UPDATE` trigger was adopted as the enforcement mechanism. This was documented as the accepted strategy in the logical design (Step 3) and implemented in the DDL (Step 5). The trigger also enforces the unavailable-space rule in a single pass, providing consistent enforcement for both critical rules.
 
-### Issue 5: Space Status vs. Booking Availability
+### Issue 4: Booking Lifecycle State Transitions Not Enforced at Schema Level
 
-- **Observation:** `spaces.current_status` includes `'InUse'` as a valid value, but the design currently has no mechanism to automatically set or clear `'InUse'` based on active usage sessions.
-- **Resolution:** This is a known operational gap. In a production system, the check-in/check-out process should atomically update `spaces.current_status` between `'Available'` and `'InUse'`. For Phase 1, this is documented as an application-layer responsibility.
+**Problem:** The booking lifecycle (Pending → Approved/Rejected → CheckedIn → Completed/NoShow) has specific valid transitions that cannot be fully expressed with a simple CHECK constraint on a status column.
 
-## Summary
+**Resolution:** The CHECK constraint `CK_bookings_status` whitelists all valid status values, preventing arbitrary status strings. The specific state transition logic (e.g., preventing a direct transition from Pending to Completed) is deferred to the application layer. Adding a trigger to enforce state transitions was considered but rejected to keep the trigger scope focused on the two critical cross-row business rules. This tradeoff is documented as a known limitation.
 
-| Validation Area | Result | Notes |
-|---|---|---|
-| ERD-to-Relational Mapping | ✓ PASS | All 9 entities and 13 relationships correctly mapped |
-| Business Rules Addressed | ✓ PASS | All rules from Output 01 are enforced or documented |
-| Normalization (3NF) | ✓ PASS | Schema satisfies 1NF, 2NF, and 3NF |
-| Overlap Prevention | ✓ DOCUMENTED | Trigger-based strategy specified |
-| Status-Based Prevention | ✓ DOCUMENTED | Trigger/application cross-reference strategy specified |
-| Referential Integrity | ✓ PASS | All FKs properly defined; UNIQUE enforces 1-to-0..1 |
-| Design Issues | 5 ISSUES LOGGED (2 resolved) | Issues 2 and 3 resolved in Output 03; Issues 1, 4, 5 remain as documented |
+### Issue 5: Capacity Enforcement (Open Question)
+
+**Problem:** The system stores both `spaces.capacity` and `bookings.expected_participants`, but the business requirement does not specify whether `expected_participants <= capacity` is a hard rule or a soft guideline.
+
+**Resolution:** No constraint was added. Both values are stored and available for application-level or reporting-level comparison. This remains an open question for the project team to resolve with the stakeholder.
+
+### Issue 6: UsageSession Checked-in-by / Completed-by Role Ambiguity
+
+**Problem:** The conceptual ERD shows two separate relationships from UserAccount to UsageSession ("checks in" and "completes"). In the logical schema, these become two columns (`checked_in_by`, `completed_by`) in the same table. Without clarity, a single staff member could be recorded as both the check-in and check-out staff, which may be acceptable or not depending on policy.
+
+**Resolution:** The schema allows the same staff member to be both `checked_in_by` and `completed_by`, which is a valid real-world scenario (e.g., the same facility staff member handles both check-in and check-out). No constraint prevents this. If the policy changes, an application-level check can enforce separation.
