@@ -19,8 +19,9 @@
 -- Business question: Which spaces are not under maintenance, closed, or retired, and have no overlapping approved bookings for a given time window?
 -- Target user(s): Facility Staff, Facility Manager
 -- Why this query is useful: Enables quick lookup of bookable spaces for any requested time slot without manually checking each room.
-DECLARE @search_start DATETIME2 = '2026-07-10 09:00:00';
-DECLARE @search_end   DATETIME2 = '2026-07-10 11:00:00';
+DECLARE @target_date DATE = DATEADD(day, 14, CAST(GETDATE() AS DATE));
+DECLARE @search_start DATETIME2 = DATEADD(hour, 9, CAST(@target_date AS DATETIME2));
+DECLARE @search_end   DATETIME2 = DATEADD(hour, 11, CAST(@target_date AS DATETIME2));
 
 SELECT
     s.space_code,
@@ -143,11 +144,11 @@ GROUP BY s.space_code, s.space_name, s.space_type, s.building, s.capacity
 ORDER BY total_usage_hours DESC;
 GO
 
--- Query 5: Facility-Based Space Search
+-- Query 5: Facility-Based Bookable Space Search
 -- Query type: facility-based search
--- Business question: Which available spaces have both a Projector and a Whiteboard and can accommodate at least the desired number of participants?
+-- Business question: Which spaces not under maintenance, temporarily closed, or retired have both a Projector and a Whiteboard and can accommodate at least the desired number of participants?
 -- Target user(s): Facility Staff, Facility Manager
--- Why this query is useful: Lets users find spaces meeting combined facility and capacity requirements without inspecting each room individually.
+-- Why this query is useful: Lets users find non-closed spaces meeting combined facility and capacity requirements without inspecting each room individually.
 DECLARE @min_capacity INT = 20;
 DECLARE @required_facilities TABLE (facility_name NVARCHAR(100));
 INSERT INTO @required_facilities VALUES (N'Projector'), (N'Whiteboard');
@@ -200,14 +201,15 @@ SELECT
     COUNT(b.booking_id)                                                    AS total_bookings,
     SUM(CASE WHEN b.status = 'Pending'   THEN 1 ELSE 0 END)               AS pending_count,
     SUM(CASE WHEN b.status = 'Approved'  THEN 1 ELSE 0 END)               AS approved_count,
+    SUM(CASE WHEN b.status = 'CheckedIn' THEN 1 ELSE 0 END)               AS checked_in_count,
     SUM(CASE WHEN b.status = 'Completed' THEN 1 ELSE 0 END)               AS completed_count,
     SUM(CASE WHEN b.status = 'Rejected'  THEN 1 ELSE 0 END)               AS rejected_count,
     SUM(CASE WHEN b.status = 'Cancelled' THEN 1 ELSE 0 END)               AS cancelled_count,
     SUM(CASE WHEN b.status = 'NoShow'    THEN 1 ELSE 0 END)               AS noshow_count,
-    SUM(b.expected_participants)                                           AS total_participants
+    COALESCE(SUM(b.expected_participants), 0)                              AS total_participants
 FROM departments d
-INNER JOIN user_accounts u ON u.department_id = d.department_id
-INNER JOIN bookings b      ON b.requester_id = u.user_id
+LEFT JOIN user_accounts u ON u.department_id = d.department_id
+LEFT JOIN bookings b      ON b.requester_id = u.user_id
 GROUP BY d.department_id, d.department_name
 ORDER BY d.department_name;
 GO
@@ -548,7 +550,7 @@ GO
 -- Query type: maintenance impact analysis
 -- Business question: Which Approved bookings are scheduled in a space during the same period as an active (InProgress) maintenance record, meaning the session may need to be rescheduled?
 -- Target user(s): Facility Staff, Facility Manager
--- Why this query is useful: Proactively identifies bookings that conflict with ongoing maintenance so staff can notify users and relocate before the session date.
+-- Why this query is useful: Proactively identifies bookings that conflict with ongoing maintenance so staff can notify users and relocate before the session date. May return zero rows when no approved booking overlaps active maintenance.
 DECLARE @maint_inprogress_status NVARCHAR(20) = N'InProgress';
 DECLARE @approved_status         NVARCHAR(20) = N'Approved';
 DECLARE @far_future DATETIME2 = CAST(N'2099-12-31' AS DATETIME2);
@@ -580,7 +582,7 @@ GO
 
 -- Query 4: No-Show Behaviour Analytics by User
 -- Query type: no-show behavior analytics
--- Business question: What is each user's no-show rate (NoShow bookings ÷ total bookings), and who are the top offenders?
+-- Business question: What is each user's no-show rate (NoShow bookings ÷ total bookings), shown as a ranked list of users?
 -- Target user(s): Facility Staff, Facility Manager
 -- Why this query is useful: Identifies users with high no-show rates who may need reminders or booking restrictions, improving space utilisation.
 DECLARE @noshow_status NVARCHAR(20) = N'NoShow';
@@ -604,11 +606,11 @@ GROUP BY u.user_id, u.full_name, u.email, u.role, d.department_name
 ORDER BY noshow_percentage DESC;
 GO
 
--- Query 5: Space Utilization Efficiency — Average Fill Rate
+-- Query 5: Space Utilization Efficiency — Average Expected Fill Rate
 -- Query type: space utilization efficiency
--- Business question: What is the average fill rate (actual participants ÷ capacity) for completed sessions in each space, identifying under- or over-utilised spaces?
+-- Business question: What is the average expected fill rate (expected participants ÷ capacity) for completed sessions in each space, identifying under- or over-utilised spaces?
 -- Target user(s): Facility Manager
--- Why this query is useful: Enables data-driven capacity planning and space reallocation by comparing how fully each room is used during completed sessions.
+-- Why this query is useful: Enables data-driven capacity planning and space reallocation by comparing expected attendance against room capacity for completed sessions.
 SELECT
     s.space_code,
     s.space_name,
@@ -619,16 +621,16 @@ SELECT
     COUNT(b.booking_id)                                                     AS completed_sessions,
     ROUND(
         AVG(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100, 2
-    )                                                                       AS avg_fill_rate_pct,
-    MIN(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100 AS min_fill_rate_pct,
-    MAX(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100 AS max_fill_rate_pct
+    )                                                                       AS avg_expected_fill_rate_pct,
+    MIN(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100 AS min_expected_fill_rate_pct,
+    MAX(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100 AS max_expected_fill_rate_pct
 FROM spaces s
 INNER JOIN bookings b          ON b.space_id  = s.space_id
 INNER JOIN usage_sessions us   ON us.booking_id = b.booking_id
 WHERE us.actual_end_time IS NOT NULL
   AND b.status = N'Completed'
 GROUP BY s.space_code, s.space_name, s.space_type, s.building, s.floor, s.capacity
-ORDER BY avg_fill_rate_pct DESC;
+ORDER BY avg_expected_fill_rate_pct DESC;
 GO
 
 -- =====================================================================
