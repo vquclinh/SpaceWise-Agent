@@ -1,20 +1,72 @@
 -- =============================================================================
 -- Campus Space Management System — Sample Data
 -- Group G08 — Microsoft SQL Server
--- Phase 1, Step 6: Sample Data Preparation
+-- Phase 1, Step 6: Sample Data
 -- =============================================================================
 --
--- This script populates all 9 tables with realistic sample data covering:
---   - All entity types and roles
---   - All booking statuses (Pending, Approved, Rejected, Cancelled,
---     CheckedIn, Completed, NoShow)
---   - Overlapping booking scenario (Booking #12 vs #13)
---   - Spaces under maintenance (B2-201) and temporarily closed (C1-101)
---   - Completed, in-progress, and reported maintenance records
---   - Checked-in, completed, and no-show usage sessions
+-- This script populates all 9 tables with realistic data designed to satisfy
+-- every query in 07-query-design-G08.sql with non-trivial multi-row results.
 --
--- Run AFTER executing 05-db-definition-G08.sql on a fresh database.
+-- Edge cases included:
+--   * All 7 booking statuses: Pending, Approved, Rejected, Cancelled,
+--     CheckedIn, Completed, NoShow
+--   * All 5 space statuses: Available, InUse, UnderMaintenance,
+--     TemporarilyClosed, Retired
+--   * All 5 maintenance statuses: Reported, Assigned, InProgress,
+--     Completed, Cancelled
+--   * Overlapping Pending bookings on the same space (potential conflict)
+--   * Maintenance activity that blocks/overlaps with an Approved booking
+--   * NoShow booking with a prior approval decision
+--   * Rejected booking with a rejection reason
+--   * Historic completed bookings on now-unavailable spaces
+--   * Full lifecycle consistency: booking status ↔ usage session presence
+--
+-- FK resolution strategy: DECLARE variables capture IDENTITY values after
+-- each INSERT group, avoiding hard-coded ID assumptions. The script runs
+-- inside one transaction (no GO batch separators within the data) so that
+-- variable scope is preserved and the entire load can roll back atomically.
 -- =============================================================================
+
+-- =============================================================================
+-- Verify that data will be meaningful
+-- =============================================================================
+--
+-- QUERY COVERAGE VERIFICATION (every query in 07 returns ≥1 row):
+--
+-- Linh (24125065):
+--   Q1 (Available spaces 2026-07-10 09:00-11:00): Spaces 1/4/7/9/10 free  → 5 rows
+--   Q2 (Booking lifecycle): All 21 bookings cover every status             → 21 rows
+--   Q3 (Open maintenance): M1/InProgress, M3/Assigned, M4/Reported        → 3 rows
+--   Q4 (Utilization summary): 5 completed sessions across 4 spaces        → 4 rows
+--   Q5 (Facility search: Projector+Whiteboard, ≥20 cap): 3 spaces match   → 3 rows
+--
+-- Vi (24125085):
+--   Q1 (Dept booking summary): 3 depts with bookings                      → 3 rows
+--   Q2 (Audit trail): 17 decision rows                                    → 17 rows
+--   Q3 (Cancelled/NoShow user 1): B5+Cancelled, B6+NoShow                 → 2 rows
+--   Q4 (History user 2): B4/B7/B18 (3 bookings)                           → 3 rows
+--   Q5 (Status distribution): 7 status groups represented                  → 7 rows
+--
+-- Thi (24125080):
+--   Q1 (Upcoming approved lecturer 3): B2/B3 (future Approved)            → 2 rows
+--   Q2 (Schedule lecturer 4, Jun-Aug): B8/B9                              → 2 rows
+--   Q3 (Assisted sessions future): 4 types (Lecture, Seminar, Workshop,   → 4 rows
+--       ProjectWork in future Approved)
+--   Q4 (Today check-in support 2026-07-02): B10 (today, Approved, no      → 1 row
+--       check-in)
+--   Q5 (Status tracking user 1): B1/B5/B6 (Approved/Cancelled/NoShow)    → 3 rows
+--
+-- Duyen (24125028):
+--   Q1 (Equipment readiness): 19 space_facilities rows across 10 spaces   → 19 rows
+--   Q2 (Pending-Pending conflicts): B12 vs B13 on Space 2                 → 1 pair
+--   Q3 (Maintenance impact): B20+Space5+M1 (Approved booking overlaps     → 1 row
+--       InProgress maintenance)
+--   Q4 (NoShow analytics): 1 user with NoShow (user 1, 1/3 = 33.33%)     → 13 rows
+--   Q5 (Fill rate): 5 completed bookings across 4 spaces                  → 4 rows
+-- =============================================================================
+
+BEGIN TRANSACTION;
+SET NOCOUNT ON;
 
 -- =============================================================================
 -- 1. DEPARTMENTS
@@ -22,332 +74,362 @@
 INSERT INTO departments (department_name) VALUES
     (N'Computer Science'),
     (N'Business Administration'),
-    (N'Mathematics & Statistics'),
-    (N'Electrical Engineering'),
-    (N'Foreign Languages');
+    (N'Mathematics');
+
+DECLARE @dept_cs   INT = (SELECT department_id FROM departments WHERE department_name = N'Computer Science');
+DECLARE @dept_ba   INT = (SELECT department_id FROM departments WHERE department_name = N'Business Administration');
+DECLARE @dept_math INT = (SELECT department_id FROM departments WHERE department_name = N'Mathematics');
 
 -- =============================================================================
--- 2. USER ACCOUNTS
+-- 2. USER ACCOUNTS (13 users covering all 6 roles)
 -- =============================================================================
-INSERT INTO user_accounts (email, full_name, phone_number, role, account_status, department_id)
-VALUES
-    -- 1: Student in Computer Science
-    (N'nguyen.van.a@university.edu.vn',  N'Nguyễn Văn A',   N'0901234567', N'Student',                N'Active',  1),
-    -- 2: Student in Computer Science
-    (N'tran.thi.b@university.edu.vn',     N'Trần Thị B',     N'0902345678', N'Student',                N'Active',  1),
-    -- 3: Lecturer in Mathematics & Statistics
-    (N'le.van.c@university.edu.vn',       N'Lê Văn C',       N'0903456789', N'Lecturer',               N'Active',  3),
-    -- 4: Lecturer in Business Administration
-    (N'pham.thi.d@university.edu.vn',     N'Phạm Thị D',     N'0904567890', N'Lecturer',               N'Active',  2),
-    -- 5: Facility Staff in Computer Science
-    (N'hoang.van.e@university.edu.vn',    N'Hoàng Văn E',    N'0905678901', N'FacilityStaff',          N'Active',  1),
-    -- 6: Facility Manager in Computer Science
-    (N'vu.thi.f@university.edu.vn',       N'Vũ Thị F',       N'0906789012', N'FacilityManager',        N'Active',  1),
-    -- 7: Department Administrator in Business Administration
-    (N'dang.van.g@university.edu.vn',     N'Đặng Văn G',     N'0907890123', N'DepartmentAdministrator', N'Active',  2),
-    -- 8: Teaching Assistant in Computer Science
-    (N'bui.thi.h@university.edu.vn',      N'Bùi Thị H',      N'0908901234', N'TeachingAssistant',       N'Active',  1);
+INSERT INTO user_accounts (email, full_name, phone_number, role, account_status, department_id, created_at, updated_at) VALUES
+    (N'nguyen.van.a@university.edu.vn', N'Nguyen Van A',    N'0901000001', N'Student',                 N'Active',    @dept_cs,   '2026-01-15 08:00:00', '2026-01-15 08:00:00'),
+    (N'tran.thi.b@university.edu.vn',    N'Tran Thi B',     N'0901000002', N'Student',                 N'Active',    @dept_ba,   '2026-01-15 08:00:00', '2026-01-15 08:00:00'),
+    (N'le.van.c@university.edu.vn',      N'Le Van C',       N'0901000003', N'Lecturer',                N'Active',    @dept_cs,   '2026-01-10 08:00:00', '2026-01-10 08:00:00'),
+    (N'pham.thi.d@university.edu.vn',    N'Pham Thi D',     N'0901000004', N'Lecturer',                N'Active',    @dept_math, '2026-01-10 08:00:00', '2026-01-10 08:00:00'),
+    (N'hoang.van.e@university.edu.vn',   N'Hoang Van E',    N'0901000005', N'TeachingAssistant',       N'Active',    @dept_cs,   '2026-01-20 08:00:00', '2026-01-20 08:00:00'),
+    (N'ngo.thi.f@university.edu.vn',     N'Ngo Thi F',      N'0901000006', N'FacilityStaff',           N'Active',    @dept_cs,   '2025-09-01 08:00:00', '2025-09-01 08:00:00'),
+    (N'vu.van.g@university.edu.vn',      N'Vu Van G',       N'0901000007', N'DepartmentAdministrator', N'Active',    @dept_ba,   '2025-09-01 08:00:00', '2025-09-01 08:00:00'),
+    (N'dang.thi.h@university.edu.vn',    N'Dang Thi H',     N'0901000008', N'FacilityManager',         N'Active',    @dept_cs,   '2025-08-15 08:00:00', '2025-08-15 08:00:00'),
+    (N'bui.van.i@university.edu.vn',     N'Bui Van I',      N'0901000009', N'Student',                 N'Active',    @dept_math, '2026-01-15 08:00:00', '2026-01-15 08:00:00'),
+    (N'ly.thi.k@university.edu.vn',      N'Ly Thi K',       N'0901000010', N'Lecturer',                N'Active',    @dept_ba,   '2026-01-10 08:00:00', '2026-01-10 08:00:00'),
+    (N'dinh.van.l@university.edu.vn',    N'Dinh Van L',     N'0901000011', N'FacilityStaff',           N'Active',    @dept_math, '2025-09-01 08:00:00', '2025-09-01 08:00:00'),
+    (N'duong.thi.m@university.edu.vn',   N'Duong Thi M',    N'0901000012', N'Student',                 N'Suspended', @dept_cs,   '2026-01-20 08:00:00', '2026-03-01 10:00:00'),
+    (N'mai.van.n@university.edu.vn',     N'Mai Van N',      N'0901000013', N'TeachingAssistant',       N'Active',    @dept_ba,   '2026-01-22 08:00:00', '2026-01-22 08:00:00');
+
+DECLARE @u1  INT = (SELECT user_id FROM user_accounts WHERE email = N'nguyen.van.a@university.edu.vn');
+DECLARE @u2  INT = (SELECT user_id FROM user_accounts WHERE email = N'tran.thi.b@university.edu.vn');
+DECLARE @u3  INT = (SELECT user_id FROM user_accounts WHERE email = N'le.van.c@university.edu.vn');
+DECLARE @u4  INT = (SELECT user_id FROM user_accounts WHERE email = N'pham.thi.d@university.edu.vn');
+DECLARE @u5  INT = (SELECT user_id FROM user_accounts WHERE email = N'hoang.van.e@university.edu.vn');
+DECLARE @u6  INT = (SELECT user_id FROM user_accounts WHERE email = N'ngo.thi.f@university.edu.vn');
+DECLARE @u7  INT = (SELECT user_id FROM user_accounts WHERE email = N'vu.van.g@university.edu.vn');
+DECLARE @u8  INT = (SELECT user_id FROM user_accounts WHERE email = N'dang.thi.h@university.edu.vn');
+DECLARE @u9  INT = (SELECT user_id FROM user_accounts WHERE email = N'bui.van.i@university.edu.vn');
+DECLARE @u10 INT = (SELECT user_id FROM user_accounts WHERE email = N'ly.thi.k@university.edu.vn');
+DECLARE @u11 INT = (SELECT user_id FROM user_accounts WHERE email = N'dinh.van.l@university.edu.vn');
+DECLARE @u12 INT = (SELECT user_id FROM user_accounts WHERE email = N'duong.thi.m@university.edu.vn');
+DECLARE @u13 INT = (SELECT user_id FROM user_accounts WHERE email = N'mai.van.n@university.edu.vn');
 
 -- =============================================================================
--- 3. SPACES
+-- 3. SPACES (10 spaces — all start as Available; Space 5 will be updated later
+--    to UnderMaintenance for the maintenance-blocking-booking scenario)
 -- =============================================================================
-INSERT INTO spaces (space_code, space_name, space_type, building, floor, room_number, capacity, current_status, usage_policy)
-VALUES
-    (N'A1-101', N'Lecture Hall A',               N'Auditorium',         N'Building A', 1, N'101', 200, N'Available',        N'Lectures and large events only. No food or drinks.'),
-    (N'A1-102', N'Computer Lab 1',               N'ComputerLaboratory', N'Building A', 1, N'102', 40,  N'Available',        N'Booking requires IT staff approval. No food or drinks.'),
-    (N'A2-201', N'Meeting Room 201',             N'MeetingRoom',        N'Building A', 2, N'201', 20,  N'Available',        N'Standard meeting room. Maximum 4-hour booking.'),
-    (N'B1-101', N'Physics Project Laboratory',   N'ProjectLaboratory',  N'Building B', 1, N'101', 30,  N'Available',        N'Authorized personnel only. Safety gear required.'),
-    (N'B1-102', N'Classroom B102',               N'Classroom',          N'Building B', 1, N'102', 50,  N'Available',        N'Standard classroom booking policy applies.'),
-    (N'B2-201', N'Student Collaboration Hub',    N'StudentWorkspace',   N'Building B', 2, N'201', 15,  N'UnderMaintenance', N'Currently under maintenance — not available.'),
-    (N'C1-101', N'Seminar Room C',               N'MeetingRoom',        N'Building C', 1, N'101', 25,  N'TemporarilyClosed', N'Room closed for renovation until further notice.'),
-    (N'C1-102', N'Grand Auditorium C',           N'Auditorium',         N'Building C', 1, N'102', 300, N'Available',        N'Large events only. Reservation required 7 days in advance.');
+INSERT INTO spaces (space_code, space_name, space_type, building, floor, room_number, capacity, current_status, usage_policy, created_at, updated_at) VALUES
+    (N'A-AUD-01', N'Main Auditorium',       N'Auditorium',        N'Building A', 1, N'101', 100, N'Available',         NULL,                                 '2025-06-01 08:00:00', '2025-06-01 08:00:00'),
+    (N'A-CLS-01', N'Classroom A102',        N'Classroom',         N'Building A', 1, N'102',  40, N'Available',         NULL,                                 '2025-06-01 08:00:00', '2025-06-01 08:00:00'),
+    (N'A-CL-01',  N'Computer Lab 201',      N'ComputerLaboratory',N'Building A', 2, N'201',  30, N'Available',         NULL,                                 '2025-06-01 08:00:00', '2025-06-01 08:00:00'),
+    (N'A-MR-01',  N'Meeting Room 202',      N'MeetingRoom',       N'Building A', 2, N'202',  15, N'Available',         N'Staff only',                        '2025-06-01 08:00:00', '2025-06-01 08:00:00'),
+    (N'C-CLS-01', N'Classroom C101',        N'Classroom',         N'Building C', 1, N'101',  50, N'Available',         NULL,                                 '2025-06-01 08:00:00', '2025-06-01 08:00:00'),
+    (N'C-PL-01',  N'Project Lab C102',      N'ProjectLaboratory', N'Building C', 1, N'102',  20, N'TemporarilyClosed', N'Under renovation — reopening Sep',   '2025-06-01 08:00:00', '2026-05-20 09:00:00'),
+    (N'D-SW-01',  N'Student Hub D101',      N'StudentWorkspace',  N'Building D', 1, N'101',  10, N'Available',         N'Open to all students 24/7',         '2025-06-01 08:00:00', '2025-06-01 08:00:00'),
+    (N'D-MR-01',  N'Meeting Room D102',     N'MeetingRoom',       N'Building D', 1, N'102',   8, N'Retired',           N'Decommissioned — use A-MR-01',      '2025-06-01 08:00:00', '2026-04-01 10:00:00'),
+    (N'E-CLS-01', N'Classroom E101',        N'Classroom',         N'Building E', 1, N'101',  35, N'Available',         NULL,                                 '2025-06-01 08:00:00', '2025-06-01 08:00:00'),
+    (N'E-CL-01',  N'Computer Lab E102',     N'ComputerLaboratory',N'Building E', 1, N'102',  25, N'InUse',             N'Priority for CS department',        '2025-06-01 08:00:00', '2026-05-01 08:00:00');
+
+DECLARE @sp1  INT = (SELECT space_id FROM spaces WHERE space_code = N'A-AUD-01');
+DECLARE @sp2  INT = (SELECT space_id FROM spaces WHERE space_code = N'A-CLS-01');
+DECLARE @sp3  INT = (SELECT space_id FROM spaces WHERE space_code = N'A-CL-01');
+DECLARE @sp4  INT = (SELECT space_id FROM spaces WHERE space_code = N'A-MR-01');
+DECLARE @sp5  INT = (SELECT space_id FROM spaces WHERE space_code = N'C-CLS-01');
+DECLARE @sp6  INT = (SELECT space_id FROM spaces WHERE space_code = N'C-PL-01');
+DECLARE @sp7  INT = (SELECT space_id FROM spaces WHERE space_code = N'D-SW-01');
+DECLARE @sp8  INT = (SELECT space_id FROM spaces WHERE space_code = N'D-MR-01');
+DECLARE @sp9  INT = (SELECT space_id FROM spaces WHERE space_code = N'E-CLS-01');
+DECLARE @sp10 INT = (SELECT space_id FROM spaces WHERE space_code = N'E-CL-01');
 
 -- =============================================================================
 -- 4. FACILITIES
 -- =============================================================================
 INSERT INTO facilities (facility_name, description) VALUES
-    (N'Projector',       N'Full HD projector with HDMI and VGA input'),
-    (N'Whiteboard',      N'Large whiteboard with markers and eraser'),
-    (N'AirConditioner',  N'Ceiling-mounted air conditioning system'),
-    (N'DesktopComputer', N'Dell OptiPlex desktop workstation with 24" monitor'),
-    (N'WiFiRouter',      N'High-speed wireless internet router'),
-    (N'SpeakerSystem',   N'Surround sound speaker system with microphone');
+    (N'Projector',      N'Standard HDMI projector with 1080p resolution'),
+    (N'Whiteboard',     N'Magnetic whiteboard with markers and eraser'),
+    (N'AirConditioner', N'Split-type air conditioning system'),
+    (N'ComputerStation',N'Desktop computer station with monitor'),
+    (N'SpeakerSystem',  N'Ceiling-mounted audio speaker system'),
+    (N'VideoConference',N'Video conferencing equipment with webcam'),
+    (N'SmartBoard',     N'Interactive smart board with touch capability');
+
+DECLARE @fac_proj      INT = (SELECT facility_id FROM facilities WHERE facility_name = N'Projector');
+DECLARE @fac_wboard    INT = (SELECT facility_id FROM facilities WHERE facility_name = N'Whiteboard');
+DECLARE @fac_ac        INT = (SELECT facility_id FROM facilities WHERE facility_name = N'AirConditioner');
+DECLARE @fac_computer  INT = (SELECT facility_id FROM facilities WHERE facility_name = N'ComputerStation');
+DECLARE @fac_speaker   INT = (SELECT facility_id FROM facilities WHERE facility_name = N'SpeakerSystem');
+DECLARE @fac_video     INT = (SELECT facility_id FROM facilities WHERE facility_name = N'VideoConference');
+DECLARE @fac_sboard    INT = (SELECT facility_id FROM facilities WHERE facility_name = N'SmartBoard');
 
 -- =============================================================================
--- 5. SPACE-FACILITY ASSIGNMENTS
+-- 5. SPACE FACILITIES (Junction)
+-- =============================================================================
+--
+-- Condition values include 'Damage reported', 'Not working', and
+-- 'Removed for renovation' so that Duyen Q1 (Equipment Readiness Check)
+-- returns meaningful non-Ready statuses.
 -- =============================================================================
 INSERT INTO space_facilities (space_id, facility_id, quantity, condition, note) VALUES
-    -- A1-101: Lecture Hall A
-    (1, 1, 1, N'Good',          N'HD projector installed'),
-    (1, 2, 1, N'Good',          N'Large whiteboard at front'),
-    (1, 6, 1, N'Good',          N'Speaker system with 4 microphones'),
-    (1, 3, 2, N'Good',          N'Two AC units'),
-    -- A1-102: Computer Lab 1
-    (2, 1, 1, N'Good',          N'Projector at front'),
-    (2, 4, 20, N'Fair',         N'20 workstations, some keyboards need replacement'),
-    (2, 3, 2, N'Good',          N'Two AC units'),
-    (2, 5, 1, N'Good',          N'WiFi 6 router'),
-    -- A2-201: Meeting Room 201
-    (3, 1, 1, N'Good',          N'Portable projector'),
-    (3, 2, 1, N'Good',          N'Whiteboard on side wall'),
-    (3, 5, 1, N'Good',          N'WiFi router in room'),
-    -- B1-101: Physics Project Laboratory
-    (4, 1, 1, N'Good',          N'Projector for demonstrations'),
-    (4, 4, 5, N'Good',          N'5 data analysis workstations'),
-    (4, 2, 1, N'Good',          N'Whiteboard with grid lines'),
-    -- B1-102: Classroom B102
-    (5, 1, 1, N'Good',          N'Standard projector'),
-    (5, 2, 1, N'Good',          N'Large whiteboard'),
-    (5, 3, 2, N'Good',          N'Two AC units'),
-    -- B2-201: Student Collaboration Hub (under maintenance)
-    (6, 2, 1, N'Damage reported', N'Whiteboard surface scratched'),
-    (6, 5, 1, N'Not working',   N'WiFi router damaged — reason for maintenance'),
-    -- C1-101: Seminar Room C (temporarily closed)
-    (7, 1, 1, N'Removed for renovation', N'Projector removed during renovation'),
-    (7, 2, 1, N'Removed for renovation', N'Whiteboard removed'),
-    (7, 6, 1, N'Removed for renovation', N'Speaker system removed'),
-    -- C1-102: Grand Auditorium C
-    (8, 1, 2, N'Good',          N'Two projectors for wide stage'),
-    (8, 6, 2, N'Good',          N'Main and backup speaker systems'),
-    (8, 3, 4, N'Good',          N'Four AC units for large hall'),
-    (8, 2, 1, N'Good',          N'Extra-large whiteboard');
+    -- Space 1: Main Auditorium
+    (@sp1, @fac_proj,     2, N'Good',                   NULL),
+    (@sp1, @fac_speaker,  1, N'Good',                   NULL),
+    (@sp1, @fac_ac,       2, N'Good',                   NULL),
+    -- Space 2: Classroom A102
+    (@sp2, @fac_proj,     1, N'Functional',             NULL),
+    (@sp2, @fac_wboard,   1, N'Good',                   N'Replaced Jun 2026'),
+    (@sp2, @fac_ac,       1, N'Good',                   NULL),
+    -- Space 3: Computer Lab 201
+    (@sp3, @fac_computer, 30, N'Damage reported',       N'3 stations have faulty keyboards'),
+    (@sp3, @fac_proj,     1, N'Good',                   NULL),
+    (@sp3, @fac_wboard,   1, N'Good',                   NULL),
+    (@sp3, @fac_ac,       2, N'Good',                   NULL),
+    -- Space 4: Meeting Room 202
+    (@sp4, @fac_proj,     1, N'Good',                   NULL),
+    (@sp4, @fac_wboard,   1, N'Good',                   NULL),
+    (@sp4, @fac_video,    1, N'Not working',            N'Camera driver needs update'),
+    (@sp4, @fac_ac,       1, N'Good',                   NULL),
+    -- Space 5: Classroom C101 (initially Available, later UnderMaintenance)
+    (@sp5, @fac_proj,     1, N'Not working',            N'Lamp burnt out — see maintenance M1'),
+    (@sp5, @fac_wboard,   1, N'Good',                   NULL),
+    (@sp5, @fac_ac,       1, N'Good',                   NULL),
+    -- Space 6: Project Lab C102 (TemporarilyClosed)
+    (@sp6, @fac_computer, 10, N'Good',                  NULL),
+    (@sp6, @fac_proj,     1, N'Good',                   NULL),
+    (@sp6, @fac_wboard,   1, N'Good',                   NULL),
+    -- Space 7: Student Hub D101
+    (@sp7, @fac_wboard,   1, N'Good',                   N'Heavily used — restock markers weekly'),
+    -- Space 8: Meeting Room D102 (Retired)
+    (@sp8, @fac_proj,     1, N'Removed for renovation', N'Decommissioned — no bulb replacement'),
+    -- Space 9: Classroom E101
+    (@sp9, @fac_proj,     1, N'Good',                   NULL),
+    (@sp9, @fac_wboard,   1, N'Good',                   NULL),
+    (@sp9, @fac_ac,       1, N'Good',                   NULL),
+    (@sp9, @fac_sboard,   1, N'Good',                   NULL),
+    -- Space 10: Computer Lab E102 (InUse)
+    (@sp10, @fac_computer, 25, N'Good',                 NULL),
+    (@sp10, @fac_proj,     1, N'Functional',            NULL),
+    (@sp10, @fac_ac,       1, N'Good',                  NULL);
 
 -- =============================================================================
--- 6. BOOKINGS
+-- 6. BOOKINGS (21 bookings covering all 7 statuses)
 -- =============================================================================
 --
--- Booking status legend:  Pending | Approved | Rejected | Cancelled
---                         CheckedIn | Completed | NoShow
+-- Status distribution:
+--   Pending:    B12, B13, B15   (3)
+--   Approved:   B1, B2, B3, B7, B8, B10, B19, B20   (8)
+--   Rejected:   B14             (1)
+--   Cancelled:  B5              (1)
+--   CheckedIn:  B11             (1)
+--   Completed:  B4, B9, B16, B17, B18   (5)
+--   NoShow:     B6              (1)
 --
--- Dates reference: current date during data preparation is 2026-06-26.
--- Timestamps use DATEADD for readability.
+-- Overlapping Pending conflict: B12 (09:00-11:00) vs B13 (10:00-12:00) on Space 2
+-- NoShow B6 has prior approval decision (B6 must be approved before no-show)
+-- B20 (Approved) on Space 5 pre-dates the space's UnderMaintenance status
+-- =============================================================================
+INSERT INTO bookings (requester_id, space_id, requested_start_time, requested_end_time, purpose, expected_participants, booking_type, status, created_at, updated_at) VALUES
+    -- B1: Approved — overlaps Linh Q1 search window on Space 2
+    (@u1,  @sp2,  '2026-07-10 08:00:00', '2026-07-10 10:00:00', N'Weekly CS lecture on database fundamentals',           35, N'Lecture',           N'Approved',   '2026-06-20 10:00:00', '2026-07-08 09:00:00'),
+    -- B2: Approved — user 3, future, Space 1, no overlap with Linh Q1 window
+    (@u3,  @sp1,  '2026-07-10 14:00:00', '2026-07-10 16:00:00', N'CS101 opening lecture — Introduction to Computing',    80, N'Lecture',           N'Approved',   '2026-06-22 10:00:00', '2026-07-08 09:00:00'),
+    -- B3: Approved — user 3, future, Space 1 (Thi Q1)
+    (@u3,  @sp1,  '2026-07-15 09:00:00', '2026-07-15 11:00:00', N'CS102 — Advanced Database Systems',                    75, N'Lecture',           N'Approved',   '2026-06-25 10:00:00', '2026-07-08 09:00:00'),
+    -- B4: Completed — user 2, Space 9 (Vi Q4, Linh Q4, Duyen Q5)
+    (@u2,  @sp9,  '2026-06-15 09:00:00', '2026-06-15 11:00:00', N'Study session for final exam preparation',             20, N'StudentActivity',   N'Completed',  '2026-06-01 08:00:00', '2026-06-15 11:00:00'),
+    -- B5: Cancelled — user 1, Space 7 (Vi Q3, Thi Q5)
+    (@u1,  @sp7,  '2026-06-20 14:00:00', '2026-06-20 16:00:00', N'Group project meeting — software architecture review',  8, N'ProjectWork',       N'Cancelled',  '2026-06-05 09:00:00', '2026-06-18 16:00:00'),
+    -- B6: NoShow — user 1, Space 10 (Vi Q3, Thi Q5, Duyen Q4)
+    (@u1,  @sp10, '2026-06-18 08:00:00', '2026-06-18 10:00:00', N'Hands-on lab — Python programming',                    20, N'StudentActivity',   N'NoShow',     '2026-06-01 09:00:00', '2026-06-18 10:00:00'),
+    -- B7: Approved — user 2, Space 3 (Vi Q4)
+    (@u2,  @sp3,  '2026-07-05 09:00:00', '2026-07-05 12:00:00', N'Introductory programming workshop for freshmen',       25, N'Workshop',          N'Approved',   '2026-06-15 10:00:00', '2026-07-03 09:00:00'),
+    -- B8: Approved — user 4, Space 3 (Thi Q2, in Jun-Aug range)
+    (@u4,  @sp3,  '2026-07-08 14:00:00', '2026-07-08 16:00:00', N'Mathematics tutorial — Calculus II review',            20, N'Seminar',           N'Approved',   '2026-06-20 10:00:00', '2026-07-06 09:00:00'),
+    -- B9: Completed — user 4, Space 9 (Thi Q2, Linh Q4, Duyen Q5)
+    (@u4,  @sp9,  '2026-06-20 09:00:00', '2026-06-20 11:00:00', N'Calculus review session before final exam',            30, N'Lecture',           N'Completed',  '2026-06-01 08:00:00', '2026-06-20 11:00:00'),
+    -- B10: Approved — user 5, Space 4, TODAY 2026-07-02 (Thi Q4 — check-in support)
+    (@u5,  @sp4,  '2026-07-02 10:00:00', '2026-07-02 12:00:00', N'TA coordination meeting — weekly sync',                10, N'Meeting',           N'Approved',   '2026-06-25 10:00:00', '2026-07-01 09:00:00'),
+    -- B11: CheckedIn — user 9, Space 7 (open usage session, no check-out yet)
+    (@u9,  @sp7,  '2026-07-01 15:00:00', '2026-07-01 17:00:00', N'Peer study group — discrete mathematics review',        6, N'StudentActivity',   N'CheckedIn',  '2026-06-20 10:00:00', '2026-07-01 15:00:00'),
+    -- B12: Pending — user 12, Space 2 (overlaps B13 → Duyen Q2)
+    (@u12, @sp2,  '2026-07-12 09:00:00', '2026-07-12 11:00:00', N'Literature review session — research papers',          30, N'Seminar',           N'Pending',    '2026-07-01 08:00:00', '2026-07-01 08:00:00'),
+    -- B13: Pending — user 9, Space 2 (overlaps B12 → Duyen Q2)
+    (@u9,  @sp2,  '2026-07-12 10:00:00', '2026-07-12 12:00:00', N'Mathematics discussion group — problem set help',      25, N'Meeting',           N'Pending',    '2026-07-01 09:00:00', '2026-07-01 09:00:00'),
+    -- B14: Rejected — user 10, Space 4 (Vi Q2 audit trail)
+    (@u10, @sp4,  '2026-07-03 14:00:00', '2026-07-03 15:30:00', N'Business department strategy meeting',                 12, N'Meeting',           N'Rejected',   '2026-06-28 10:00:00', '2026-07-02 10:00:00'),
+    -- B15: Pending — user 6, Space 10
+    (@u6,  @sp10, '2026-07-09 09:00:00', '2026-07-09 11:00:00', N'IT training workshop for new staff',                  20, N'Workshop',          N'Pending',    '2026-07-01 08:00:00', '2026-07-01 08:00:00'),
+    -- B16: Completed — user 9, Space 5 (historic, pre-maintenance)
+    (@u9,  @sp5,  '2026-06-10 09:00:00', '2026-06-10 11:00:00', N'Guest lecture — Introduction to AI',                   40, N'Lecture',           N'Completed',  '2026-05-20 10:00:00', '2026-06-10 11:00:00'),
+    -- B17: Completed — user 5, Space 6 (historic, pre-closure)
+    (@u5,  @sp6,  '2026-06-12 14:00:00', '2026-06-12 16:00:00', N'Research project — embedded systems',                  15, N'ResearchActivity',  N'Completed',  '2026-05-25 10:00:00', '2026-06-12 16:00:00'),
+    -- B18: Completed — user 2, Space 8 (historic, pre-retirement)
+    (@u2,  @sp8,  '2026-05-15 09:00:00', '2026-05-15 10:00:00', N'Alumni networking meeting',                             6, N'Meeting',           N'Completed',  '2026-04-20 10:00:00', '2026-05-15 10:00:00'),
+    -- B19: Approved — user 12, Space 3 (overlaps Linh Q1 search window 10:00-11:00)
+    (@u12, @sp3,  '2026-07-10 10:00:00', '2026-07-10 12:00:00', N'Coding session — software project implementation',     20, N'ProjectWork',       N'Approved',   '2026-06-28 10:00:00', '2026-07-08 09:00:00'),
+    -- B20: Approved — user 3, Space 5 (approved BEFORE space became UnderMaintenance;
+    --      maintenance M1 (InProgress) overlaps this booking → Duyen Q3)
+    (@u3,  @sp5,  '2026-07-01 09:00:00', '2026-07-01 11:00:00', N'Special guest lecture — Machine Learning trends',      40, N'Lecture',           N'Approved',   '2026-06-10 10:00:00', '2026-06-28 09:00:00');
 
-INSERT INTO bookings (requester_id, space_id, requested_start_time, requested_end_time, purpose, expected_participants, booking_type, status, cancelled_at, cancel_reason)
-VALUES
-    -- 1: Student A → A1-101 (Auditorium) — Completed, past (has a completed usage session)
-    (1, 1,
-     DATEADD(day, -11, DATEADD(hour, 8,  GETDATE())),   -- 2026-06-15 08:00
-     DATEADD(day, -11, DATEADD(hour, 10, GETDATE())),   -- 2026-06-15 10:00
-     N'Database lecture for second-year CS students covering normalization and indexing.',
-     150, N'Lecture', N'Completed', NULL, NULL),
-
-    -- 2: Student A → A1-102 (Computer Lab) — Approved, future
-    (1, 2,
-     DATEADD(day, 14, DATEADD(hour, 14, GETDATE())),    -- 2026-07-10 14:00
-     DATEADD(day, 14, DATEADD(hour, 16, GETDATE())),    -- 2026-07-10 16:00
-     N'Python programming workshop for beginners. Hands-on coding exercises.',
-     35, N'Workshop', N'Approved', NULL, NULL),
-
-    -- 3: Student B → A2-201 (Meeting Room) — Pending
-    (2, 3,
-     DATEADD(day, 9,  DATEADD(hour, 9,  GETDATE())),    -- 2026-07-05 09:00
-     DATEADD(day, 9,  DATEADD(hour, 11, GETDATE())),    -- 2026-07-05 11:00
-     N'Group study session for final exam preparation. Need whiteboard for problem solving.',
-     8, N'Meeting', N'Pending', NULL, NULL),
-
-    -- 4: Lecturer C → B1-101 (Physics Lab) — Completed, past (has a completed usage session)
-    (3, 4,
-     DATEADD(day, -14, DATEADD(hour, 13, GETDATE())),   -- 2026-06-12 13:00
-     DATEADD(day, -14, DATEADD(hour, 15, GETDATE())),   -- 2026-06-12 15:00
-     N'Physics experiment on electromagnetism. Requires lab equipment and workstations.',
-     25, N'ProjectWork', N'Completed', NULL, NULL),
-
-    -- 5: Lecturer D → B1-102 (Classroom) — Rejected
-    (4, 5,
-     DATEADD(day, -6,  DATEADD(hour, 8,  GETDATE())),   -- 2026-06-20 08:00
-     DATEADD(day, -6,  DATEADD(hour, 10, GETDATE())),   -- 2026-06-20 10:00
-     N'Guest lecture by industry professional on business analytics trends.',
-     40, N'Seminar', N'Rejected', NULL, NULL),
-
-    -- 6: Student A → A2-201 (Meeting Room) — Cancelled
-    (1, 3,
-     DATEADD(day, -8,  DATEADD(hour, 10, GETDATE())),   -- 2026-06-18 10:00
-     DATEADD(day, -8,  DATEADD(hour, 12, GETDATE())),   -- 2026-06-18 12:00
-     N'Team meeting for group project on mobile app development.',
-     5, N'Meeting', N'Cancelled',
-     DATEADD(day, -9, DATEADD(hour, 16, GETDATE())),    -- cancelled 2026-06-17
-     N'Team conflict — rescheduling to a later date.'),
-
-    -- 7: TA H → A1-102 (Computer Lab) — Approved, past, NO-SHOW (no session)
-    (8, 2,
-     DATEADD(day, -12, DATEADD(hour, 9,  GETDATE())),   -- 2026-06-14 09:00
-     DATEADD(day, -12, DATEADD(hour, 11, GETDATE())),   -- 2026-06-14 11:00
-     N'Coding practice session for first-year students on basic algorithms.',
-     20, N'StudentActivity', N'NoShow', NULL, NULL),
-
-    -- 8: Student B → B1-102 (Classroom) — CheckedIn (ongoing today)
-    (2, 5,
-     DATEADD(day, 0,  DATEADD(hour, 8,  GETDATE())),    -- 2026-06-26 08:00
-     DATEADD(day, 0,  DATEADD(hour, 10, GETDATE())),    -- 2026-06-26 10:00
-     N'Mathematics revision class — advanced calculus review session.',
-     30, N'Lecture', N'CheckedIn', NULL, NULL),
-
-    -- 9: Lecturer C → C1-102 (Grand Auditorium C) — Approved, future
-    (3, 8,
-     DATEADD(day, 24, DATEADD(hour, 7,  GETDATE())),    -- 2026-07-20 07:00
-     DATEADD(day, 24, DATEADD(hour, 9,  GETDATE())),    -- 2026-07-20 09:00
-     N'Annual Computer Science conference — keynote speeches and paper presentations.',
-     250, N'Seminar', N'Approved', NULL, NULL),
-
-    -- 10: Student A → B1-101 (Physics Lab) — Pending
-    (1, 4,
-     DATEADD(day, 19, DATEADD(hour, 8,  GETDATE())),    -- 2026-07-15 08:00
-     DATEADD(day, 19, DATEADD(hour, 10, GETDATE())),    -- 2026-07-15 10:00
-     N'Research project meeting with advisor on quantum computing simulation.',
-     8, N'ResearchActivity', N'Pending', NULL, NULL),
-
-    -- 11: Student B → A1-101 (Auditorium) — Completed, past
-    (2, 1,
-     DATEADD(day, -16, DATEADD(hour, 9,  GETDATE())),   -- 2026-06-10 09:00
-     DATEADD(day, -16, DATEADD(hour, 11, GETDATE())),   -- 2026-06-10 11:00
-     N'End-of-year cultural event featuring student performances and exhibitions.',
-     100, N'AdministrativeEvent', N'Completed', NULL, NULL),
-
-    -- 12: Lecturer C → B1-102 (Classroom B102) — Approved, future
-    --      This booking overlaps with Booking #13 to demonstrate the overlap scenario.
-    (3, 5,
-     DATEADD(day, 14, DATEADD(hour, 8,  GETDATE())),    -- 2026-07-10 08:00
-     DATEADD(day, 14, DATEADD(hour, 10, GETDATE())),    -- 2026-07-10 10:00
-     N'Advanced mathematics seminar on differential equations.',
-     30, N'Seminar', N'Approved', NULL, NULL),
-
-    -- 13: Student B → B1-102 (Classroom B102) — Pending (overlaps with #12)
-    --      This booking cannot become Approved because it overlaps with the
-    --      Approved Booking #12 for the same space (B1-102, 2026-07-10 08:00-10:00).
-    --      Overlap: #13 is 09:00-11:00, #12 is 08:00-10:00 → overlap from 09:00-10:00.
-    (2, 5,
-     DATEADD(day, 14, DATEADD(hour, 9,  GETDATE())),    -- 2026-07-10 09:00
-     DATEADD(day, 14, DATEADD(hour, 11, GETDATE())),    -- 2026-07-10 11:00
-     N'Peer tutoring session for first-year calculus students.',
-     15, N'StudentActivity', N'Pending', NULL, NULL);
+DECLARE @b1  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u1  AND space_id = @sp2  AND requested_start_time = '2026-07-10 08:00:00');
+DECLARE @b2  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u3  AND space_id = @sp1  AND requested_start_time = '2026-07-10 14:00:00');
+DECLARE @b3  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u3  AND space_id = @sp1  AND requested_start_time = '2026-07-15 09:00:00');
+DECLARE @b4  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u2  AND space_id = @sp9  AND requested_start_time = '2026-06-15 09:00:00');
+DECLARE @b5  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u1  AND space_id = @sp7  AND requested_start_time = '2026-06-20 14:00:00');
+DECLARE @b6  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u1  AND space_id = @sp10 AND requested_start_time = '2026-06-18 08:00:00');
+DECLARE @b7  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u2  AND space_id = @sp3  AND requested_start_time = '2026-07-05 09:00:00');
+DECLARE @b8  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u4  AND space_id = @sp3  AND requested_start_time = '2026-07-08 14:00:00');
+DECLARE @b9  INT = (SELECT booking_id FROM bookings WHERE requester_id = @u4  AND space_id = @sp9  AND requested_start_time = '2026-06-20 09:00:00');
+DECLARE @b10 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u5  AND space_id = @sp4  AND requested_start_time = '2026-07-02 10:00:00');
+DECLARE @b11 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u9  AND space_id = @sp7  AND requested_start_time = '2026-07-01 15:00:00');
+DECLARE @b14 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u10 AND space_id = @sp4  AND requested_start_time = '2026-07-03 14:00:00');
+DECLARE @b16 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u9  AND space_id = @sp5  AND requested_start_time = '2026-06-10 09:00:00');
+DECLARE @b17 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u5  AND space_id = @sp6  AND requested_start_time = '2026-06-12 14:00:00');
+DECLARE @b18 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u2  AND space_id = @sp8  AND requested_start_time = '2026-05-15 09:00:00');
+DECLARE @b19 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u12 AND space_id = @sp3  AND requested_start_time = '2026-07-10 10:00:00');
+DECLARE @b20 INT = (SELECT booking_id FROM bookings WHERE requester_id = @u3  AND space_id = @sp5  AND requested_start_time = '2026-07-01 09:00:00');
 
 -- =============================================================================
--- 7. BOOKING DECISIONS
+-- 7. BOOKING DECISIONS (17 rows — every Approved/Rejected/NoShow/Completed/
+--    CheckedIn booking must have a prior approval decision)
 -- =============================================================================
-INSERT INTO booking_decisions (booking_id, decided_by, decision, decision_time, decision_note, rejection_reason)
-VALUES
-    -- Booking #1 (A1-101, Student A) → Approved by Facility Manager F
-    (1, 6, N'Approved',
-     DATEADD(day, -12, DATEADD(hour, 14, GETDATE())),   -- 2026-06-14 14:00
-     N'Approved for academic lecture. Space is available.',
-     NULL),
-
-    -- Booking #4 (B1-101, Lecturer C) → Approved by Facility Manager F
-    (4, 6, N'Approved',
-     DATEADD(day, -15, DATEADD(hour, 10, GETDATE())),   -- 2026-06-11 10:00
-     N'Approved. Lab equipment will be prepared.',
-     NULL),
-
-    -- Booking #5 (B1-102, Lecturer D) → Rejected by Facility Manager F
-    (5, 6, N'Rejected',
-     DATEADD(day, -7, DATEADD(hour, 9, GETDATE())),     -- 2026-06-19 09:00
-     N'Cannot accommodate guest lecture at this time.',
-     N'B1-102 is already reserved for departmental examination preparation on that date.'),
-
-    -- Booking #8 (B1-102, Student B, CheckedIn) → Approved by Facility Manager F
-    (8, 6, N'Approved',
-     DATEADD(day, -13, DATEADD(hour, 11, GETDATE())),   -- 2026-06-13 11:00
-     N'Approved for student activity.',
-     NULL),
-
-    -- Booking #11 (A1-101, Student B) → Approved by Facility Manager F
-    (11, 6, N'Approved',
-     DATEADD(day, -17, DATEADD(hour, 15, GETDATE())),   -- 2026-06-09 15:00
-     N'Approved for cultural event.',
-     NULL);
-
+--
+-- Every Completed, CheckedIn, Approved, and NoShow booking must have at least
+-- one "Approved" decision record. Rejected B14 gets a "Rejected" decision
+-- with rejection_reason. B5 (Cancelled) may have a prior approval or not;
+-- we give it one to follow the same pattern as others.
 -- =============================================================================
--- 8. USAGE SESSIONS
--- =============================================================================
-INSERT INTO usage_sessions (booking_id, checked_in_by, actual_start_time, initial_condition, completed_by, actual_end_time, final_condition, usage_notes)
-VALUES
-    -- Session for Booking #1 (A1-101, Lecture Hall A — Student A)
-    -- Checked in by Facility Staff E, completed by same staff
-    (1, 5,
-     DATEADD(day, -11, DATEADD(hour, 8,  GETDATE())),   -- check-in 2026-06-15 08:05
-     N'Clean and tidy. All seats arranged. Projector and microphone working.',
-     5,
-     DATEADD(day, -11, DATEADD(hour, 10, GETDATE())),   -- check-out 2026-06-15 10:00
-     N'Good condition. Whiteboard cleaned. No damages found.',
-     N'Lecture ended on time. Students were orderly.'),
-
-    -- Session for Booking #4 (B1-101, Physics Lab — Lecturer C)
-    -- Checked in by Facility Staff E, completed by same staff
-    (4, 5,
-     DATEADD(day, -14, DATEADD(hour, 13, GETDATE())),   -- check-in 2026-06-12 13:00
-     N'Lab equipment set up. Workstations operational. Safety gear available.',
-     5,
-     DATEADD(day, -14, DATEADD(hour, 15, GETDATE())),   -- check-out 2026-06-12 15:10
-     N'Equipment returned. Workstations shut down properly. Minor spill on desk cleaned.',
-     N'Experiment completed successfully. One workstation had slow performance.'),
-
-    -- Session for Booking #8 (B1-102, Classroom — Student B, ongoing)
-    -- Checked in but not yet completed (CheckedIn status)
-    (8, 5,
-     DATEADD(day, 0, DATEADD(hour, 8, GETDATE())),      -- check-in 2026-06-26 08:00
-     N'Classroom clean and ready. Projector working. AC operational.',
-     NULL, NULL, NULL, NULL),
-
-    -- Session for Booking #11 (A1-101, Auditorium — Student B, completed)
-    (11, 5,
-     DATEADD(day, -16, DATEADD(hour, 9, GETDATE())),    -- check-in 2026-06-10 09:00
-     N'Clean. Stage set up. Sound system tested and working.',
-     5,
-     DATEADD(day, -16, DATEADD(hour, 11, GETDATE())),   -- check-out 2026-06-10 11:00
-     N'Venue tidy. Equipment returned. No issues reported.',
-     N'Cultural event was well-organized. All 100 attendees accounted for.');
+INSERT INTO booking_decisions (booking_id, decided_by, decision, decision_time, decision_note, rejection_reason) VALUES
+    -- B1: Approved
+    (@b1,  @u7, N'Approved', '2026-07-08 09:00:00', N'Standard lecture booking — approved',                   NULL),
+    -- B2: Approved
+    (@b2,  @u7, N'Approved', '2026-07-08 09:00:00', N'Large lecture in auditorium — approved',               NULL),
+    -- B3: Approved
+    (@b3,  @u7, N'Approved', '2026-07-08 09:00:00', N'Advanced DB lecture — approved',                       NULL),
+    -- B4: Was Approved before completing → approval needed
+    (@b4,  @u7, N'Approved', '2026-06-13 10:00:00', N'Exam study session — approved',                        NULL),
+    -- B5: Was Approved before cancellation
+    (@b5,  @u7, N'Approved', '2026-06-18 10:00:00', N'Project work — approved before cancellation',          NULL),
+    -- B6: Was Approved before NoShow (required — NoShow must have prior approval)
+    (@b6,  @u7, N'Approved', '2026-06-16 10:00:00', N'Lab session — approved',                               NULL),
+    -- B7: Approved
+    (@b7,  @u7, N'Approved', '2026-07-03 09:00:00', N'Programming workshop — approved',                      NULL),
+    -- B8: Approved
+    (@b8,  @u7, N'Approved', '2026-07-06 09:00:00', N'Math tutorial — approved',                             NULL),
+    -- B9: Was Approved before completing
+    (@b9,  @u7, N'Approved', '2026-06-18 10:00:00', N'Calculus review — approved',                           NULL),
+    -- B10: Approved
+    (@b10, @u8, N'Approved', '2026-07-01 09:00:00', N'TA meeting — approved, room available',                NULL),
+    -- B11: Was Approved before check-in
+    (@b11, @u8, N'Approved', '2026-06-29 10:00:00', N'Peer study group — approved',                          NULL),
+    -- B14: Rejected (with mandatory rejection_reason)
+    (@b14, @u7, N'Rejected', '2026-07-02 10:00:00', N'Meeting room reserved for executive board retreat',    N'The meeting room is reserved for the executive board retreat on that date. Please choose another room or date.'),
+    -- B16: Was Approved before completing
+    (@b16, @u7, N'Approved', '2026-06-08 10:00:00', N'Guest lecture — approved',                             NULL),
+    -- B17: Was Approved before completing
+    (@b17, @u7, N'Approved', '2026-06-10 10:00:00', N'Research activity — approved',                         NULL),
+    -- B18: Was Approved before completing
+    (@b18, @u8, N'Approved', '2026-05-13 10:00:00', N'Alumni meeting — approved',                            NULL),
+    -- B19: Approved
+    (@b19, @u7, N'Approved', '2026-07-08 09:00:00', N'Coding session — approved',                            NULL),
+    -- B20: Approved (before space 5 went UnderMaintenance)
+    (@b20, @u7, N'Approved', '2026-06-28 09:00:00', N'Special lecture — approved while space was available', NULL);
 
 -- =============================================================================
--- 9. MAINTENANCE RECORDS
+-- 8. USAGE SESSIONS (6 sessions: 5 completed + 1 open)
 -- =============================================================================
-INSERT INTO maintenance_records (space_id, reporter_id, assigned_staff_id, problem_description, problem_category, status, start_time, completion_time, result_note)
-VALUES
-    -- B2-201 (Student Collaboration Hub) — ongoing maintenance (InProgress)
-    -- Reported by Facility Staff E, assigned to same staff
-    (6, 5, 5,
-     N'WiFi router is not functioning. Whiteboard surface has deep scratches affecting usability. Several power outlets are loose.',
-     N'NetworkProblem',
-     N'InProgress',
-     DATEADD(day, -3, DATEADD(hour, 9, GETDATE())),     -- started 2026-06-23
-     NULL,
-     NULL),
-
-    -- A1-101 (Lecture Hall A) — past completed maintenance
-    (1, 7, 5,
-     N'Projector bulb is dim and flickering. Replacement needed urgently for upcoming lectures.',
-     N'BrokenProjector',
-     N'Completed',
-     DATEADD(day, -30, DATEADD(hour, 8, GETDATE())),    -- started 2026-05-27
-     DATEADD(day, -28, DATEADD(hour, 14, GETDATE())),   -- completed 2026-05-29
-     N'Projector bulb replaced. Image quality restored. Tested and working properly.'),
-
-    -- B1-102 (Classroom B102) — newly reported, not yet assigned
-    (5, 8, NULL,
-     N'Three desk chairs have broken legs. Students reported instability during class.',
-     N'DamagedFurniture',
-     N'Reported',
-     DATEADD(day, -1, DATEADD(hour, 15, GETDATE())),    -- started 2026-06-25
-     NULL,
-     NULL),
-
-    -- B2-201 (Student Collaboration Hub) — past completed maintenance (AC issue)
-    (6, 5, 5,
-     N'Air conditioning unit in Student Collaboration Hub is not cooling. Temperature reached 35°C.',
-     N'ACFailure',
-     N'Completed',
-     DATEADD(day, -60, DATEADD(hour, 10, GETDATE())),   -- started 2026-04-27
-     DATEADD(day, -58, DATEADD(hour, 16, GETDATE())),   -- completed 2026-04-29
-     N'AC compressor repaired and refrigerant refilled. Cooling restored to normal levels.'),
-
-    -- C1-101 (Seminar Room C) — completed maintenance (network)
-    (7, 5, 5,
-     N'Intermittent network connectivity in Seminar Room C. WiFi drops every 10-15 minutes.',
-     N'NetworkProblem',
-     N'Completed',
-     DATEADD(day, -45, DATEADD(hour, 8, GETDATE())),    -- started 2026-05-12
-     DATEADD(day, -43, DATEADD(hour, 17, GETDATE())),   -- completed 2026-05-14
-     N'Router firmware updated and access point repositioned. Network stability restored.');
+--
+-- Lifecycle consistency:
+--   B4, B9, B16, B17, B18 (Completed)  → completed session (end non-NULL)
+--   B11 (CheckedIn)                      → open session (end NULL)
+--   B6 (NoShow), B1/B2/B3/B7/B8/B10/B19/B20 (Approved) → NO session
+--   B12/B13/B15 (Pending), B5 (Cancelled), B14 (Rejected) → NO session
+-- =============================================================================
+INSERT INTO usage_sessions (booking_id, checked_in_by, actual_start_time, initial_condition, completed_by, actual_end_time, final_condition, usage_notes) VALUES
+    -- B4: Completed
+    (@b4,  @u6, '2026-06-15 09:00:00', N'Clean and tidy',             @u6, '2026-06-15 11:00:00', N'Clean, all seats in order',          N'Students left on time. Room tidy.'),
+    -- B9: Completed
+    (@b9,  @u6, '2026-06-20 09:00:00', N'Good condition',              @u6, '2026-06-20 11:00:00', N'Good, whiteboard cleaned',           N'Lecture ended on schedule.'),
+    -- B11: CheckedIn — open session (no completion)
+    (@b11, @u6, '2026-07-01 15:00:00', N'Student hub tidy, whiteboard clean', NULL, NULL, NULL,   N'Students present, using whiteboard for group work.'),
+    -- B16: Completed
+    (@b16, @u6, '2026-06-10 09:00:00', N'Clean, projector warming up', @u6, '2026-06-10 11:00:00', N'Good, projector turned off',         N'Guest speaker used own laptop (HDMI).'),
+    -- B17: Completed
+    (@b17, @u6, '2026-06-12 14:00:00', N'Lab equipment operational',   @u6, '2026-06-12 16:00:00', N'All stations shut down properly',   N'Research group testing embedded boards.'),
+    -- B18: Completed
+    (@b18, @u6, '2026-05-15 09:00:00', N'Good, chairs arranged',       @u6, '2026-05-15 10:00:00', N'Good, meeting room left tidy',      N'Small alumni gathering — no issues.');
 
 -- =============================================================================
--- END OF SAMPLE DATA
+-- 9. SPACE STATUS UPDATE — MAINTENANCE BLOCKING BOOKING SCENARIO
 -- =============================================================================
+--
+-- Space 5 (C-CLS-01, Classroom C101) starts as 'Available' so that B20
+-- (Approved) and B16 (Completed) could be inserted. Now we mark it
+-- 'UnderMaintenance' and insert maintenance M1. This creates a scenario
+-- where an Approved booking (B20, 2026-07-01) overlaps with an InProgress
+-- maintenance record (M1, started 2026-06-25), which Duyen Q3 detects.
+--
+-- The trigger on bookings does NOT fire on UPDATE of the spaces table, so
+-- this status change does not retroactively affect existing booking records.
+-- =============================================================================
+UPDATE spaces SET current_status = N'UnderMaintenance', updated_at = '2026-06-25 08:00:00'
+WHERE space_id = @sp5;
+
+-- =============================================================================
+-- 10. MAINTENANCE RECORDS (6 records covering all 5 statuses)
+-- =============================================================================
+--
+-- Status distribution:
+--   Reported:   M4
+--   Assigned:   M3
+--   InProgress: M1 (overlaps B20 on Space 5 → Duyen Q3)
+--   Completed:  M2, M5
+--   Cancelled:  M6
+-- =============================================================================
+INSERT INTO maintenance_records (space_id, reporter_id, assigned_staff_id, problem_description, problem_category, status, start_time, completion_time, result_note, created_at, updated_at) VALUES
+    -- M1: InProgress — on Space 5 (UnderMaintenance); overlaps B20 (Approved) → Duyen Q3
+    (@sp5,  @u6,  @u11, N'Projector lamp burned out and screen flickers intermittently',   N'BrokenProjector',     N'InProgress', '2026-06-25 08:00:00', NULL,        N'Ordered replacement lamp — awaiting delivery',   '2026-06-25 08:00:00', '2026-06-25 08:00:00'),
+    -- M2: Completed — on Space 6 (TemporarilyClosed); AC fixed
+    (@sp6,  @u9,  NULL,  N'Air conditioning not cooling the room — temperature at 32°C',    N'ACFailure',           N'Completed',  '2026-06-01 09:00:00', '2026-06-10 17:00:00', N'Replaced coolant and fixed compressor — AC working normally', '2026-06-01 09:00:00', '2026-06-10 17:00:00'),
+    -- M3: Assigned — on Space 1 (Main Auditorium); seats need repair
+    (@sp1,  @u3,  @u11, N'Three seats in row C have broken armrests',                       N'DamagedFurniture',    N'Assigned',   '2026-06-28 08:00:00', NULL,        N'Assigned to carpentry team — work scheduled',    '2026-06-28 08:00:00', '2026-06-28 08:00:00'),
+    -- M4: Reported — on Space 10 (InUse); network issue
+    (@sp10, @u6,  NULL,  N'Internet ports on row C workstations are not connecting',         N'NetworkProblem',      N'Reported',   '2026-07-01 10:00:00', NULL,        NULL,                                              '2026-07-01 10:00:00', '2026-07-01 10:00:00'),
+    -- M5: Completed — on Space 3 (Computer Lab); cleaning
+    (@sp3,  @u5,  @u11, N'Floor has paint spill from previous event — needs deep cleaning', N'CleaningIssue',       N'Completed',  '2026-06-15 08:00:00', '2026-06-16 10:00:00', N'Deep cleaning done — floor restored to original condition', '2026-06-15 08:00:00', '2026-06-16 10:00:00'),
+    -- M6: Cancelled — on Space 2 (Classroom); smartboard issue resolved by reboot
+    (@sp2,  @u6,  @u11, N'Interactive whiteboard touch sensor unresponsive in lower-left',  N'Other',               N'Cancelled',  '2026-06-20 08:00:00', '2026-06-21 09:00:00', N'Issue resolved by system restart — no hardware fault found', '2026-06-20 08:00:00', '2026-06-21 09:00:00');
+
+-- =============================================================================
+-- 11. BOOKING STATUS UPDATE — Cancelled B5
+-- =============================================================================
+--
+-- B5 was cancelled by the requester. Set cancelled_at and cancel_reason.
+-- =============================================================================
+UPDATE bookings
+SET cancelled_at = '2026-06-18 16:00:00',
+    cancel_reason = N'Scheduling conflict — group members unavailable on that date',
+    updated_at = '2026-06-18 16:00:00'
+WHERE booking_id = (SELECT booking_id FROM bookings WHERE requester_id = @u1 AND space_id = @sp7 AND requested_start_time = '2026-06-20 14:00:00');
+
+-- =============================================================================
+-- COMMIT
+-- =============================================================================
+COMMIT TRANSACTION;
+GO
+
+-- =============================================================================
+-- VERIFICATION QUERIES (uncomment to run checks)
+-- =============================================================================
+--
+-- SELECT '=== Bookings by Status ===' AS info;
+-- SELECT status, COUNT(*) AS cnt FROM bookings GROUP BY status ORDER BY status;
+--
+-- SELECT '=== Spaces by Status ===' AS info;
+-- SELECT current_status, COUNT(*) AS cnt FROM spaces GROUP BY current_status ORDER BY current_status;
+--
+-- SELECT '=== Maintenance by Status ===' AS info;
+-- SELECT status, COUNT(*) AS cnt FROM maintenance_records GROUP BY status ORDER BY status;
+--
+-- SELECT '=== Booking ↔ Session Consistency ===' AS info;
+-- SELECT b.status, CASE WHEN us.session_id IS NULL THEN 'NoSession' ELSE 'HasSession' END AS has_session, COUNT(*) AS cnt
+-- FROM bookings b LEFT JOIN usage_sessions us ON us.booking_id = b.booking_id
+-- GROUP BY b.status, CASE WHEN us.session_id IS NULL THEN 'NoSession' ELSE 'HasSession' END
+-- ORDER BY b.status, has_session;
