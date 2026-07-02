@@ -462,3 +462,175 @@ GO
 -- =====================================================================
 -- END MEMBER SECTION: 24125080
 -- =====================================================================
+
+-- =====================================================================
+-- BEGIN MEMBER SECTION: 24125028
+-- Member: Trương Thị Mỹ Duyên (24125028)
+-- Target user perspective: Facility Staff, Facility Manager
+-- Query type plan (resolved target user(s) per type):
+--   1. [Facility Staff, Facility Manager] equipment readiness check
+--   2. [Facility Staff, Facility Manager] potential conflict detection
+--   3. [Facility Staff, Facility Manager] maintenance impact analysis
+--   4. [Facility Staff, Facility Manager] no-show behavior analytics
+--   5. [Facility Manager] space utilization efficiency
+-- =====================================================================
+
+-- Query 1: Equipment Readiness Check by Space
+-- Query type: equipment readiness check
+-- Business question: What is the current readiness status of each facility in every space, considering whether the space has active maintenance issues?
+-- Target user(s): Facility Staff, Facility Manager
+-- Why this query is useful: Enables staff to quickly identify spaces where facilities are broken or under active maintenance, preventing last-minute booking disruptions.
+;WITH active_maintenance AS (
+    SELECT
+        mr.space_id,
+        MAX(mr.status) AS maintenance_status,
+        COUNT(*) AS open_issues
+    FROM maintenance_records mr
+    WHERE mr.status IN (N'Reported', N'Assigned', N'InProgress')
+    GROUP BY mr.space_id
+)
+SELECT
+    s.space_code,
+    s.space_name,
+    s.building,
+    s.room_number,
+    f.facility_name,
+    sf.quantity,
+    sf.condition,
+    CASE
+        WHEN am.space_id IS NOT NULL THEN N'Space has ' + am.maintenance_status + N' — not ready'
+        WHEN sf.condition IN (N'Damage reported', N'Not working', N'Removed for renovation') THEN N'Facility issue — needs attention'
+        ELSE N'Ready'
+    END AS readiness_status,
+    ISNULL(am.open_issues, 0) AS open_issues_count
+FROM spaces s
+INNER JOIN space_facilities sf ON sf.space_id = s.space_id
+INNER JOIN facilities f ON f.facility_id = sf.facility_id
+LEFT JOIN active_maintenance am ON am.space_id = s.space_id
+ORDER BY readiness_status DESC, s.space_code, f.facility_name;
+GO
+
+-- Query 2: Potential Pending–Pending Booking Conflicts
+-- Query type: potential conflict detection
+-- Business question: Which pairs of Pending bookings request the same space during overlapping time slots, signalling a potential scheduling conflict?
+-- Target user(s): Facility Staff, Facility Manager
+-- Why this query is useful: Surfaces competing Pending requests early so staff can resolve before approving one and rejecting the other. May return zero rows if no Pending conflicts exist.
+DECLARE @conflict_status NVARCHAR(20) = N'Pending';
+
+SELECT
+    b1.booking_id                                           AS booking_id_a,
+    b2.booking_id                                           AS booking_id_b,
+    s.space_code,
+    s.space_name,
+    u1.full_name                                            AS requester_a,
+    u2.full_name                                            AS requester_b,
+    b1.requested_start_time                                 AS start_a,
+    b1.requested_end_time                                   AS end_a,
+    b2.requested_start_time                                 AS start_b,
+    b2.requested_end_time                                   AS end_b,
+    DATEDIFF(MINUTE, b1.requested_start_time, b1.requested_end_time) AS duration_minutes_a,
+    DATEDIFF(MINUTE, b2.requested_start_time, b2.requested_end_time) AS duration_minutes_b
+FROM bookings b1
+INNER JOIN bookings b2
+    ON  b1.space_id = b2.space_id
+    AND b1.booking_id < b2.booking_id
+    AND b1.status = @conflict_status
+    AND b2.status = @conflict_status
+    AND b1.requested_start_time < b2.requested_end_time
+    AND b2.requested_start_time < b1.requested_end_time
+INNER JOIN spaces s           ON s.space_id  = b1.space_id
+INNER JOIN user_accounts u1   ON u1.user_id  = b1.requester_id
+INNER JOIN user_accounts u2   ON u2.user_id  = b2.requester_id
+ORDER BY s.space_code, b1.requested_start_time;
+GO
+
+-- Query 3: Maintenance Impact on Approved Bookings
+-- Query type: maintenance impact analysis
+-- Business question: Which Approved bookings are scheduled in a space during the same period as an active (InProgress) maintenance record, meaning the session may need to be rescheduled?
+-- Target user(s): Facility Staff, Facility Manager
+-- Why this query is useful: Proactively identifies bookings that conflict with ongoing maintenance so staff can notify users and relocate before the session date.
+DECLARE @maint_inprogress_status NVARCHAR(20) = N'InProgress';
+DECLARE @approved_status         NVARCHAR(20) = N'Approved';
+DECLARE @far_future DATETIME2 = CAST(N'2099-12-31' AS DATETIME2);
+
+SELECT
+    b.booking_id,
+    s.space_code,
+    s.space_name,
+    u.full_name                                             AS requester_name,
+    b.requested_start_time                                  AS booking_start,
+    b.requested_end_time                                    AS booking_end,
+    mr.maintenance_id,
+    mr.problem_category,
+    mr.problem_description,
+    mr.start_time                                           AS maintenance_start,
+    COALESCE(mr.completion_time, @far_future)               AS maintenance_expected_end,
+    DATEDIFF(day, mr.start_time, GETDATE())                 AS maintenance_age_days
+FROM bookings b
+INNER JOIN maintenance_records mr
+    ON  mr.space_id = b.space_id
+    AND mr.status = @maint_inprogress_status
+INNER JOIN spaces s         ON s.space_id  = b.space_id
+INNER JOIN user_accounts u  ON u.user_id  = b.requester_id
+WHERE b.status = @approved_status
+  AND b.requested_start_time < COALESCE(mr.completion_time, @far_future)
+  AND b.requested_end_time   > mr.start_time
+ORDER BY s.space_code, b.requested_start_time;
+GO
+
+-- Query 4: No-Show Behaviour Analytics by User
+-- Query type: no-show behavior analytics
+-- Business question: What is each user's no-show rate (NoShow bookings ÷ total bookings), and who are the top offenders?
+-- Target user(s): Facility Staff, Facility Manager
+-- Why this query is useful: Identifies users with high no-show rates who may need reminders or booking restrictions, improving space utilisation.
+DECLARE @noshow_status NVARCHAR(20) = N'NoShow';
+
+SELECT
+    u.user_id,
+    u.full_name,
+    u.email,
+    u.role,
+    d.department_name,
+    COUNT(b.booking_id)                                                     AS total_bookings,
+    SUM(CASE WHEN b.status = @noshow_status THEN 1 ELSE 0 END)              AS noshow_count,
+    ISNULL(ROUND(
+        SUM(CASE WHEN b.status = @noshow_status THEN 1.0 ELSE 0.0 END)
+        / NULLIF(COUNT(b.booking_id), 0) * 100, 2
+    ), 0)                                                                    AS noshow_percentage
+FROM user_accounts u
+INNER JOIN departments d ON d.department_id = u.department_id
+LEFT JOIN bookings b    ON b.requester_id  = u.user_id
+GROUP BY u.user_id, u.full_name, u.email, u.role, d.department_name
+ORDER BY noshow_percentage DESC;
+GO
+
+-- Query 5: Space Utilization Efficiency — Average Fill Rate
+-- Query type: space utilization efficiency
+-- Business question: What is the average fill rate (actual participants ÷ capacity) for completed sessions in each space, identifying under- or over-utilised spaces?
+-- Target user(s): Facility Manager
+-- Why this query is useful: Enables data-driven capacity planning and space reallocation by comparing how fully each room is used during completed sessions.
+SELECT
+    s.space_code,
+    s.space_name,
+    s.space_type,
+    s.building,
+    s.floor,
+    s.capacity,
+    COUNT(b.booking_id)                                                     AS completed_sessions,
+    ROUND(
+        AVG(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100, 2
+    )                                                                       AS avg_fill_rate_pct,
+    MIN(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100 AS min_fill_rate_pct,
+    MAX(CAST(b.expected_participants AS FLOAT) / NULLIF(s.capacity, 0)) * 100 AS max_fill_rate_pct
+FROM spaces s
+INNER JOIN bookings b          ON b.space_id  = s.space_id
+INNER JOIN usage_sessions us   ON us.booking_id = b.booking_id
+WHERE us.actual_end_time IS NOT NULL
+  AND b.status = N'Completed'
+GROUP BY s.space_code, s.space_name, s.space_type, s.building, s.floor, s.capacity
+ORDER BY avg_fill_rate_pct DESC;
+GO
+
+-- =====================================================================
+-- END MEMBER SECTION: 24125028
+-- =====================================================================
