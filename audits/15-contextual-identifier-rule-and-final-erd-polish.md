@@ -14,7 +14,7 @@ Replace the absolute De-duplication Rule with a nuanced Contextual Identifier Ru
 
 - **Modified:** `.opencode/skills/db-design-pipeline/SKILL.md` — replaced De-duplication Rule with Contextual Identifier Rule in Steps 1 & 2; Metadata Requirement re-affirmed.
 - **Modified:** `outputs/02-erd-design-G08.md` — removed `booking_code` from Booking and `maintenance_code` from MaintenanceRecord; updated narrative and Design Decisions.
-- **Created:** `audits/16-contextual-identifier-rule-and-final-erd-polish.md` (this file).
+- **Created:** `audits/15-contextual-identifier-rule-and-final-erd-polish.md` (this file).
 
 ## What was evaluated
 
