@@ -149,7 +149,7 @@ Each row represents a direct connection between two entities exactly as drawn in
 | Facility | 1 -- 0..N | SpaceFacility | One facility appears in zero or many space-facility entries. |
 | Space | 1 -- 0..N | MaintenanceRecord | One space has zero or many maintenance records. Each record is for exactly one space. |
 | UserAccount | 1 -- 0..N | MaintenanceRecord | One user reports zero or many issues. Each record has exactly one reporter. |
-| UserAccount | 1 -- 0..N | MaintenanceRecord | One user (staff) is assigned to zero or many records. Each record has exactly one assigned staff member. |
+| UserAccount | 1 -- 0..N | MaintenanceRecord | One user (staff) is assigned to zero or many records. Each record is eventually assigned to a staff member for resolution. |
 
 ### Design Decisions
 

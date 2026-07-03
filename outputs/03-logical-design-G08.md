@@ -293,13 +293,24 @@ This table traces each Crow's Foot relationship line from the conceptual ERD to 
 | `usage_sessions` | `session_id` | Surrogate (IDENTITY) |
 | `maintenance_records` | `maintenance_id` | Surrogate (IDENTITY) |
 
+### Candidate Keys
+The following natural keys are identified as candidate keys and are enforced via `UNIQUE` constraints to ensure entity integrity:
+
+| Table | Candidate Key (Column) | Type | Rationale |
+|---|---|---|---|
+| `user_accounts` | `email` | Natural | Primary unique identifier for university-wide accounts. |
+| `spaces` | `space_code` | Natural | Human-readable unique identifier for campus rooms. |
+| `facilities` | `facility_name` | Natural | Prevents duplicate entries for the same equipment type. |
+| `space_facilities` | `(space_id, facility_id)` | Composite | Ensures a specific facility is not listed multiple times for the same space. |
+
 ### Unique Constraints
+*Note: These physical constraints implement the Candidate Keys listed above.*
 | Table | Column(s) | Purpose |
 |---|---|---|
-| `user_accounts` | `email` | Natural business identifier |
-| `spaces` | `space_code` | Business code uniqueness |
-| `facilities` | `facility_name` | Business identifier |
-| `usage_sessions` | `booking_id` | Enforces 1-to-0..1 relationship |
+| `user_accounts` | `email` | Unique login/contact identifier. |
+| `spaces` | `space_code` | Unique room business code. |
+| `facilities` | `facility_name` | Unique catalog name. |
+| `usage_sessions` | `booking_id` | Enforces 1-to-0..1 mapping between Booking and Session. |
 
 ### Check Constraints
 | Table | Constraint | Purpose |
