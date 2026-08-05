@@ -116,8 +116,12 @@ BEGIN TRY
     -- B2. Backfill rows from space_facilities.quantity (Numbers-table, set-based).
     --     Serial-number scheme MUST be globally unique (UQ_..._serial_number is a
     --     GLOBAL unique), so it includes space_id + facility_id + sequence.
+    --     Wrapped in EXEC(N'...'): this DML targets facility_assets, created by a
+    --     CREATE TABLE earlier in this same batch, so compilation is deferred to
+    --     runtime (after the table exists) — avoids any batch-compile resolution
+    --     error while keeping the backfill inside the single transaction.
     PRINT N'Backfilling facility_assets from space_facilities.quantity...';
-    WITH N1 AS (SELECT x.n FROM (VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0),(0)) x(n)),
+    EXEC(N'WITH N1 AS (SELECT x.n FROM (VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0),(0)) x(n)),
          N2 AS (SELECT n FROM N1 CROSS JOIN N1),                    -- 100
          N3 AS (SELECT n FROM N2 CROSS JOIN N2),                    -- 10,000
          Nums AS (SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS seq FROM N3)
@@ -125,14 +129,14 @@ BEGIN TRY
         (facility_id, space_id, serial_number, asset_status, condition, created_at, updated_at)
     SELECT sf.facility_id,
            sf.space_id,
-           CONCAT(N'SN-', sf.space_id, N'-', sf.facility_id, N'-', RIGHT(N'0000' + CAST(n.seq AS NVARCHAR(10)), 4)),
-           N'Available',
+           CONCAT(N''SN-'', sf.space_id, N''-'', sf.facility_id, N''-'', RIGHT(N''0000'' + CAST(n.seq AS NVARCHAR(10)), 4)),
+           N''Available'',
            sf.condition,
            GETDATE(),
            GETDATE()
     FROM dbo.space_facilities sf
     JOIN Nums n ON n.seq <= sf.quantity
-    WHERE sf.quantity > 0;
+    WHERE sf.quantity > 0;');
 
     PRINT N'  facility_assets backfilled: ' +
           CAST((SELECT COUNT(*) FROM dbo.facility_assets) AS NVARCHAR(12)) + N' asset rows created.';
@@ -560,6 +564,60 @@ BEGIN
                         AND a.alert_type = N''RequiredAssetRelocated'');
 END;');
 
+    -- E8. TR_maintenance_SyncSpaceStatus — HIDDEN IMPLEMENTATION TRIGGER that
+    --     keeps spaces.current_status consistent with maintenance impact levels,
+    --     so the LEGACY Phase 1 trigger (TR_bookings_PreventOverlapAndUnavailable,
+    --     which blocks Pending/Approved when current_status IN ('UnderMaintenance',
+    --     'TemporarilyClosed','Retired')) treats rooms correctly WITHOUT any Phase 1
+    --     code change:
+    --       * any ACTIVE OutOfService record on the space  => 'UnderMaintenance'
+    --                                                         (bookings blocked)
+    --       * only Advisory records, or no records at all  => 'Available'
+    --                                                         (Advisory rooms stay
+    --                                                          bookable — this is
+    --                                                          what "tricks" the
+    --                                                          Phase 1 trigger)
+    --     Guard: non-maintenance closure/live states ('TemporarilyClosed',
+    --     'Retired','InUse') are NEVER overwritten to 'Available' — otherwise a
+    --     Retired or TemporarilyClosed space with an advisory would become
+    --     bookable, corrupting the Phase 1 baseline. Phase 1 current_status values
+    --     are preserved at migration time; this trigger governs future changes.
+    PRINT N'Creating hidden trigger TR_maintenance_SyncSpaceStatus...';
+    EXEC(N'CREATE TRIGGER dbo.TR_maintenance_SyncSpaceStatus
+ON dbo.maintenance_records
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @affected_spaces TABLE (space_id INT NOT NULL PRIMARY KEY);
+
+    INSERT INTO @affected_spaces (space_id)
+        SELECT space_id FROM inserted
+        UNION
+        SELECT space_id FROM deleted;
+
+    IF NOT EXISTS (SELECT 1 FROM @affected_spaces) RETURN;
+
+    UPDATE s
+    SET s.current_status =
+            CASE WHEN EXISTS (
+                    SELECT 1 FROM dbo.maintenance_records mr
+                    WHERE mr.space_id = s.space_id
+                      AND mr.impact_level = N''OutOfService''
+                      AND mr.status NOT IN (N''Completed'', N''Cancelled'')
+                 )
+                 THEN N''UnderMaintenance''
+                 -- Release only maintenance-governed statuses back to Available;
+                 -- never clobber explicit closures or live-use states.
+                 WHEN s.current_status IN (N''UnderMaintenance'', N''Available'')
+                 THEN N''Available''
+                 ELSE s.current_status
+            END,
+        s.updated_at = GETDATE()
+    FROM dbo.spaces s
+    WHERE s.space_id IN (SELECT space_id FROM @affected_spaces);
+END;');
+
     -- =========================================================================
     -- PHASE F — DERIVED VIEW (3NF): unit counts derived, never stored.
     --           Physical name v_space_facility_summary (Output 09 §6); the
@@ -670,12 +728,45 @@ GROUP BY sf.space_id, sf.facility_id, f.facility_name,
     PRINT N'  SUM(space_facilities.qty) : ' + CAST(@v_sumqty  AS NVARCHAR(12));
     IF @v_assets <> @v_sumqty
     BEGIN
-        PRINT N'  WARNING: asset-row parity mismatch!';
+        PRINT N'  ERROR: total asset-row parity mismatch!';
     END
     ELSE
     BEGIN
         PRINT N'  OK: asset backfill matches space_facilities quantities.';
     END
+
+    -- Detailed per-space parity check: identify EXACTLY which space_id (+facility_id)
+    -- has SUM(quantity) <> COUNT(facility_assets rows), instead of a coarse total.
+    DECLARE @parity CURSOR FOR
+        SELECT sf.space_id, sf.facility_id,
+               SUM(sf.quantity),
+               (SELECT COUNT(*) FROM dbo.facility_assets fa
+                WHERE fa.space_id = sf.space_id AND fa.facility_id = sf.facility_id)
+        FROM dbo.space_facilities sf
+        GROUP BY sf.space_id, sf.facility_id
+        HAVING SUM(sf.quantity) <>
+               (SELECT COUNT(*) FROM dbo.facility_assets fa
+                WHERE fa.space_id = sf.space_id AND fa.facility_id = sf.facility_id);
+
+    DECLARE @ps_id INT, @pf_id INT, @pexp INT, @pact INT, @pmis INT = 0;
+    OPEN @parity;
+    FETCH NEXT FROM @parity INTO @ps_id, @pf_id, @pexp, @pact;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @pmis = @pmis + 1;
+        PRINT N'  ERROR: Space ' + CAST(@ps_id AS NVARCHAR(10)) + N' count mismatch';
+        PRINT N'         (facility_id ' + CAST(@pf_id AS NVARCHAR(10)) +
+              N': expected ' + CAST(@pexp AS NVARCHAR(10)) +
+              N', actual ' + CAST(@pact AS NVARCHAR(10)) + N')';
+        FETCH NEXT FROM @parity INTO @ps_id, @pf_id, @pexp, @pact;
+    END
+    CLOSE @parity;
+    DEALLOCATE @parity;
+    IF @pmis = 0
+        PRINT N'  OK: per-space/facility asset counts all match.';
+    ELSE
+        PRINT N'  ERROR: ' + CAST(@pmis AS NVARCHAR(10)) +
+              N' (space, facility) pair(s) have an asset-count mismatch.';
 
     PRINT N'  impact-history rows       : ' + CAST(@v_hist  AS NVARCHAR(12)) +
           N'  (maintenance records: ' + CAST(@v_maint AS NVARCHAR(12)) + N')';
