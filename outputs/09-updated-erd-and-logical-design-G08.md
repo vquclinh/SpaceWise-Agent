@@ -332,7 +332,7 @@ erDiagram
 | Space | 1 -- 0..N | FacilityAsset | One space houses zero or many units; each unit currently sits in exactly one space. |
 | Space | 1 -- 0..N | SpaceFacilityRequirement | One space requires zero or many facility types. |
 | Facility | 1 -- 0..N | SpaceFacilityRequirement | One facility type is required by zero or many spaces. |
-| MaintenanceRecord | }o -- o| | FacilityAsset | A record may target zero or one asset; an asset may be targeted by zero or many records. |
+| MaintenanceRecord | 0..N -- 0..1 | FacilityAsset | A record may target zero or one asset; an asset may be targeted by zero or many records. |
 | MaintenanceRecord | 1 -- 0..N | MaintenanceImpactHistory | One record has zero or many impact-change entries; each entry belongs to exactly one record. |
 | UserAccount | 1 -- 0..N | MaintenanceImpactHistory | One user records zero or many impact changes; each change is recorded by exactly one user. |
 | MaintenanceRecord | 0..1 -- 0..N | BookingAlert | A record triggers zero or many alerts; an alert references zero or one record (NULL when the alert is asset-caused). |
