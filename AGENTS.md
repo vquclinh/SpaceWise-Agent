@@ -6,8 +6,32 @@ This is the main agent-facing rulebook. OpenCode reads it as project-level rules
 
 - **Project:** Campus Space Management System, CS486 Introduction to Database Systems, Group **G08**.
 - **Current phase: Phase 2 — System Extension.** The agent extends the completed Phase 1 database (deliverables 01–07) to satisfy the Phase 2 requirements in `CS486_Project_Phase02.pdf`, focused on **maintenance impact levels** (advisory vs. out-of-service), **concurrency control** for simultaneous booking/approval, and **granular asset tracking** (individual units with serial numbers). Phase 2 produces Tasks 08–16 and updates `AGENT.md`/`SKILL.md` to document the improvements made.
-- **Phase 1 is complete:** the seven Phase 1 outputs in `outputs/` exist and are the migration baseline for Phase 2. Phase 2 must preserve them — no renames or drops of Phase 1 tables, columns, or data.
+- **Phase 1 is complete:** the seven Phase 1 outputs in `outputs/` exist and are the migration baseline for Phase 2. Phase 2 must preserve them — no renames or drops of Phase 1 tables, columns, or data — **except the documented exceptions below (§1a–§1c).**
 - **Out of scope for Phase 2:** frontend, backend, and deployment implementation. Do not create such code now (see section 11).
+
+### 1a. Documented Phase 2 baseline amendment — `facilities` table
+
+- **Authorized by:** Truong Thi My Duyen (24125028), Senior Lead Database Architect, 2026-08-08.
+- **Change:** the Phase 1 `facilities` catalogue table is **dropped**. Its only substantive attribute, `facility_name`, is absorbed directly into `space_facilities`, whose primary key changes from `(space_id, facility_id)` to a composite `(space_id, facility_name)`. `space_facilities.facility_id` and `facilities.description` have no replacement column and are dropped as data. `facility_assets` and `space_facility_requirements` now link to `space_facilities` via composite FK on `(space_id, facility_name)` instead of `(space_id, facility_id)`.
+- **Scope of the exception:** this is a one-time, explicitly authorized override of the "no drops of Phase 1 tables/columns" rule (§1) and the "keep every Phase 1 table/column name verbatim" rule (§3), scoped **only** to `facilities`, `space_facilities.facility_id`, and `space_facilities.quantity`. Every other Phase 1 table and column remains governed by the standard baseline-preservation rule — this entry does not open the door to further ad hoc baseline changes without an equivalent documented amendment.
+- **Design tradeoff (recorded for the record):** `facility_name` is no longer FK-validated against a catalogue; it is instead constrained by a `CHECK` whitelist on `space_facilities` (matching the convention already used for `role`, `space_type`, `status`, etc. in this schema, rather than a lookup table). Adding a new facility type now requires a migration to extend the `CHECK` list, the same tradeoff every other enum column in this schema already carries.
+- **Downstream impact:** `outputs/10-schema-migration-G08.sql` was generated against the pre-amendment schema (it still creates `facilities` and FKs on `facility_id`) and is now stale. It is out of scope for this amendment and must be regenerated before Task 11+ proceeds.
+
+### 1b. Documented Phase 2 baseline amendment — `space_facilities` table
+
+- **Authorized by:** Truong Thi My Duyen (24125028), Senior Lead Database Architect, 2026-08-08.
+- **Change:** the `space_facilities` table is **dropped entirely**. Its key pair `(space_id, facility_name)` is exactly `SELECT DISTINCT space_id, facility_name FROM facility_assets` — a stored projection, the same class of stored-derivable fact that motivated removing `quantity` under §1a. Its `condition` column duplicated `facility_assets.condition` with no defined source of truth; its `note` column has no consumer anywhere in the design and is dropped as data.
+- **Scope of the exception:** scoped only to `space_facilities` and the composite FKs (`FK_facility_assets_space_facility`, `FK_space_facility_requirements_space_facility`) that referenced it. `facility_assets` and `space_facility_requirements` are unaffected as tables — only their FK shape changes, to a plain `FK → spaces(space_id)` plus an independent `CHECK` whitelist on `facility_name` each.
+- **Design tradeoff (recorded for the record):** `facility_name` loses its single structural home. It is now `CHECK`-constrained independently on `facility_assets` and `space_facility_requirements` — two whitelists that must be kept in sync manually whenever a facility type is added. This compounds the tradeoff already accepted in §1a.
+- **Downstream impact:** `outputs/10-schema-migration-G08.sql` predates this amendment (it still creates `space_facilities` and the composite FKs through it) and is stale; it must be regenerated before Task 11+ proceeds.
+
+### 1c. Documented Phase 2 baseline amendment — `user_accounts.role` column
+
+- **Authorized by:** Truong Thi My Duyen (24125028), Senior Lead Database Architect, 2026-08-08.
+- **Change:** the single-valued `user_accounts.role` column is **dropped** and replaced by a `user_roles(user_id, role)` junction table, because one person may legitimately hold several roles (e.g., a Facility Manager who also books rooms as a requester). All Phase 1 data is preserved by the migration `INSERT INTO user_roles (user_id, role) SELECT user_id, role FROM user_accounts` executed before the column is dropped.
+- **Scope of the exception:** scoped only to `user_accounts.role` and `CK_user_accounts_role`. Every other `user_accounts` column is untouched.
+- **Nature of the change (recorded explicitly):** this is a **cardinality / domain-fidelity correction, not a normalization fix**. A single-valued `role` column violates neither 1NF nor 3NF; it simply modeled a multi-valued reality as single-valued.
+- **Downstream impact:** `outputs/10-schema-migration-G08.sql` predates this amendment (it still creates `user_accounts.role`) and is stale; it must be regenerated before Task 11+ proceeds.
 
 ## 2. Source-of-truth order
 
@@ -29,7 +53,7 @@ Run `ls -la` to detect new files before assuming anything exists. Use paths rela
 - **Prefer targeted edits** over regenerating all outputs.
 - If changing one output can affect related outputs, **inspect upstream/downstream files** and keep the whole set consistent (pipeline order: `01 → 02 → 03 → 04 → 05 → 06 → 07`).
 - Avoid unrelated rewrites; change only what the task requires.
-- **Naming Convention:** tables and columns use `snake_case` (e.g., `facility_assets`, `serial_number`); enum values use PascalCase (e.g., `'Advisory'`, `'OutOfService'`). Phase 2 must keep every Phase 1 table/column name verbatim when extending the schema.
+- **Naming Convention:** tables and columns use `snake_case` (e.g., `facility_assets`, `serial_number`); enum values use PascalCase (e.g., `'Advisory'`, `'OutOfService'`). Phase 2 must keep every Phase 1 table/column name verbatim when extending the schema, subject to the documented exceptions in §1a–§1c.
 - **Conceptual vs. Logical Boundary (pipeline order):** Steps 1 & 2 (Conceptual Design) must NEVER include physical implementation details such as Data Types (int, string, datetime), Foreign Keys (FK), or Indexes. These are reserved for Step 3 (Logical Design) onward.
 - **Lifecycle & Optionality Rule:** Assume a lifecycle starting from zero. Use Optional notations (`0..n` or `0..1`) for relationships unless there is a specific, absolute business necessity for a Mandatory (`1..n`) relationship. For example, a new Department may have zero Users initially.
 - **Notation Standard:** While using Mermaid Crow's Foot notation for technical convenience, the design logic must prioritize the Chen/Hybrid mindset. Always double-check that the "1" and "Many" sides match business reality, not just table-linking logic.
