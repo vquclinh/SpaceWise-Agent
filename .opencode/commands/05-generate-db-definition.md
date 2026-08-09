@@ -12,4 +12,4 @@ This command generates the SQL Data Definition Language (DDL) required to implem
 3. **Generate Output:** Create or update ONLY `outputs/05-db-definition-G08.sql`.
 4. **Target DBMS:** Use Microsoft SQL Server syntax (e.g., `IDENTITY`, `DATETIME2`, `NVARCHAR`).
 5. **Safety Constraint:** Do NOT generate, modify, or overwrite other deliverables.
-6. **Audit Policy:** After generation, you MUST follow the repository audit policy (AGENTS.md section 7). Create a new audit log in `docs/audits/` using the `AUDIT_TEMPLATE.md` format.
+6. **Audit Policy:** After generation, you MUST follow the repository audit policy (AGENTS.md section 8). Create a new audit log in `docs/audits/` using the `AUDIT_TEMPLATE.md` format.

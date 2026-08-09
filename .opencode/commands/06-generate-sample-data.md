@@ -12,4 +12,4 @@ This command generates a SQL script to populate your database with realistic sam
 3. **Generate Output:** Create or update ONLY `outputs/06-sample-data-G08.sql`.
 4. **Data Quality:** The data must be realistic, cover all entity types, and—most importantly—include edge cases (like rejected bookings, no-shows, and spaces under maintenance) so that your team's queries in Step 7 have interesting data to return.
 5. **Safety Constraint:** Do NOT generate, modify, or overwrite other deliverables.
-6. **Audit Policy:** After generation, you MUST follow the repository audit policy (AGENTS.md section 7). Create a new audit log in `docs/audits/` using the `AUDIT_TEMPLATE.md` format.
+6. **Audit Policy:** After generation, you MUST follow the repository audit policy (AGENTS.md section 8). Create a new audit log in `docs/audits/` using the `AUDIT_TEMPLATE.md` format.
