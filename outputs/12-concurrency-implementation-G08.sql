@@ -530,8 +530,8 @@ BEGIN
     IF @m_status IN (N'Completed', N'Cancelled')
         THROW 50021, N'Cannot escalate a Completed or Cancelled maintenance record.', 1;
 
-    BEGIN TRANSACTION;
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    BEGIN TRANSACTION;
 
     BEGIN TRY
         /* ---- 1. FIRST significant lock: the bookings range (C4) -----------
@@ -575,8 +575,9 @@ BEGIN
            TR_maintenance_escalation  -> booking_alerts rows (LAST resource)
            TR_impact_history_StaffRole   -> staff role validation
            sp_set_session_context gives the triggers the actor and reason now. */
+        DECLARE @bounded_reason NVARCHAR(128) = CAST(@reason AS NVARCHAR(128));
         EXEC sys.sp_set_session_context @key = N'current_user_id', @value = @staff_id;
-        EXEC sys.sp_set_session_context @key = N'change_reason',   @value = @reason;
+        EXEC sys.sp_set_session_context @key = N'change_reason',   @value = @bounded_reason;
 
         UPDATE dbo.maintenance_records
         SET    impact_level = N'OutOfService', updated_at = GETDATE()

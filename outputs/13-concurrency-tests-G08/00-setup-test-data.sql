@@ -36,6 +36,24 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 SET IMPLICIT_TRANSACTIONS OFF;
 
+/* ---------------------------------------------------------------------
+       0. ENABLE RCSI (READ COMMITTED SNAPSHOT ISOLATION)
+          Bật RCSI để cho phép kịch bản test Baseline (Part A) chạy song song 
+          và đọc dữ liệu cũ thay vì bị khóa (freeze). Điều này giúp mô phỏng 
+          chính xác lỗ hổng Check-Then-Act của Giai đoạn 1.
+          Lệnh này bắt buộc phải chạy bên ngoài BEGIN TRANSACTION.
+       --------------------------------------------------------------------- */
+    IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()) = 0
+    BEGIN
+        PRINT N'[setup] Enabling READ_COMMITTED_SNAPSHOT on the current database...';
+        ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+        PRINT N'[setup] READ_COMMITTED_SNAPSHOT is now ON.';
+    END
+    ELSE
+    BEGIN
+        PRINT N'[setup] READ_COMMITTED_SNAPSHOT is already ON.';
+    END
+
 BEGIN TRANSACTION;
 BEGIN TRY
 
