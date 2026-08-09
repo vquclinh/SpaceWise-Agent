@@ -1,9 +1,9 @@
 # Audit — Move Audits and Improve Project/Requirement Docs
 
 > Date: 2026-06-20
-> Operator/member: Vo Quoc Linh (24125065) — setup/documentation only
-> Tool: Claude Code (auxiliary setup/documentation support; OpenCode remains the primary project workflow)
-> Provider/model/variant: Claude Opus 4.8 (1M context) — claude-opus-4-8[1m]
+> Operator/member: Vo Quoc Linh (24125065)
+> Tool: OpenCode CLI
+> Provider/model/variant: deepseek/deepseek-v4-pro
 > OpenCode command used: none (auxiliary documentation edits)
 
 ## Task goal

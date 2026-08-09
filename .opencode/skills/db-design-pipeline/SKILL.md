@@ -245,6 +245,30 @@ The queries should support real operational needs for staff/manager use, for exa
 
 Use Microsoft SQL Server syntax unless the user specifies another DBMS.
 
+## Phase 2 Task-Specific Extensions
+
+Phase 2 work is handled by task-specific command and skill files under
+`.opencode/commands/` and `.opencode/skills/db-design-pipeline/`. The shared
+pipeline rules in this file still apply, but Phase 2 deliverables must also
+follow `AGENTS.md`, `CS486_Project_Phase02.pdf`, `req/business-requirement-P2.md`,
+and the immediate previous Phase 2 output.
+
+Current Phase 2 task skills include:
+
+- `08-requirement-change-analysis`
+- `09-updated-erd-and-logical-design`
+- `10-schema-migration`
+- `11-concurrency-design`
+- `12-concurrency-implementation`
+- `13-concurrency-tests`
+- `14-data-generator`
+- `15-index-tuning-report`
+- `16-analytical-queries`
+
+Tasks 14, 15, and 16 must stay separate at the command/skill layer. Task 15 may
+read outputs 14 and 16 for tuning context, and Task 16 may read output 15 for
+index-awareness, but each task command should generate only its own deliverable.
+
 ## SQL Server Requirements
 
 - Use SQL Server syntax and types (`IDENTITY`, `DATETIME2`, `GETDATE()`, `TOP`, `NVARCHAR`, etc.).
