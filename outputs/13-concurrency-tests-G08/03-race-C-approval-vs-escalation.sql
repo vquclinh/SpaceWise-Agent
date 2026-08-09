@@ -69,10 +69,9 @@ BEGIN TRANSACTION;
     ) THROW 50099, N'[Baseline-C-A] OutOfService already present', 1;
 
     -- the trigger's OutOfService sub-probe also returns empty at this point.
-    WAITFOR DELAY '00:00:05';
     UPDATE dbo.bookings SET status = N'Approved' WHERE booking_id = @bk_c3;
     PRINT N'[Baseline-C-A] booking approved (trigger saw Advisory only).';
-    WAITFOR DELAY '00:00:01';
+    WAITFOR DELAY '00:00:05';
 COMMIT TRANSACTION;
 PRINT N'[Baseline-C-A] committed.  (Run B while A waits.)';
 GO
@@ -94,14 +93,17 @@ PRINT N'[Baseline-C-B] committed.';
 GO
 
 /* VERIFY — both operations succeeded (the race outcome). */
-DECLARE @maint_c3 INT = (SELECT maintenance_id FROM dbo.maintenance_records WHERE problem_description = N'T13 Race C advisory');
-SELECT b.purpose, b.status AS booking_status,
-       m.space_id AS m_space, m.impact_level AS maintenance_level
-FROM   dbo.bookings b
-CROSS  JOIN dbo.maintenance_records m
-WHERE  b.purpose = N'T13-C-BOOKING'
-  AND  m.maintenance_id = @maint_c3;
-GO
+SELECT 
+    b.purpose AS Booking_Name,
+    b.status AS Booking_Status,
+    m.impact_level AS Maintenance_Level,
+    (SELECT COUNT(*) 
+     FROM dbo.booking_alerts a 
+     WHERE a.booking_id = b.booking_id 
+       AND a.alert_type = N'MaintenanceEscalated') AS Alerts_Generated
+FROM dbo.bookings b, dbo.maintenance_records m
+WHERE b.purpose = N'T13-C-BOOKING' 
+  AND m.problem_description = N'T13 Race C advisory';
 
 /* RESET — restore pristine: booking back to Pending, maintenance back to
    Advisory so Part B can run cleanly. (Role: for the demo; in real use the
@@ -109,8 +111,8 @@ GO
 DECLARE @bk_c3     INT = (SELECT booking_id FROM dbo.bookings WHERE purpose = N'T13-C-BOOKING');
 DECLARE @maint_c3r INT = (SELECT maintenance_id FROM dbo.maintenance_records WHERE problem_description = N'T13 Race C advisory');
 BEGIN TRANSACTION;
-    UPDATE dbo.bookings SET status = N'Pending' WHERE booking_id = @bk_c3 AND status = N'Approved';
     UPDATE dbo.maintenance_records SET impact_level = N'Advisory' WHERE maintenance_id = @maint_c3r AND impact_level = N'OutOfService';
+    UPDATE dbo.bookings SET status = N'Pending' WHERE booking_id = @bk_c3 AND status = N'Approved';
 COMMIT TRANSACTION;
 PRINT N'RESET done — booking back to Pending, advisory back to Advisory.';
 GO
