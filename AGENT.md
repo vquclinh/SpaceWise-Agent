@@ -26,21 +26,41 @@ Course-facing description of the group agent setup.
 - **Model policy:** the provider/model/variant is **selected per session** and **must be recorded in each audit**. We deliberately do **not** hardcode a single global model — members may use different providers/models. The final report lists every model actually used.
 - Other agents (e.g. Claude Code) are **auxiliary** only (review/fixes recorded under `docs/audits/`); they do not generate deliverables.
 
-## Current status: setup scaffold with placeholders
+## Current status: Phase 2 system extension
 
-The repository is an **OpenCode setup scaffold with placeholder per-task command/skill files**. The step-by-step Phase 1 command files (`.opencode/commands/0{1..7}-generate-*.md`) and the matching task-specific skills (`.opencode/skills/db-design-pipeline/<NN>-*/SKILL.md`) currently exist but are **empty placeholders** — they are **not complete or ready to use**. Each group member will complete and use the command/skill for the step they own, later.
+Phase 1 is complete: outputs `01` through `07` exist in `outputs/` and form the
+migration baseline. Phase 2 extends that baseline with maintenance impact
+levels, SQL Server concurrency control, asset-level facility tracking, large
+data generation, indexing analysis, and analytical reports.
 
-Vo Quoc Linh's current role is **setup** — preparing the OpenCode repo workflow and these placeholders for the team — **not** generating Phase 1 deliverables. The only setup-safe command is `/audit-smoke-test`; `/design-db` is a generic example placeholder. No frontend/backend/deployment work is part of setup.
+Current Phase 2 deliverables in this repository:
 
-## Phase 1 workflow (later, by the group)
+- Outputs `08`, `09`, and `10` define and migrate the Phase 2 schema.
+- Outputs `11`, `12`, and `13` document and test concurrency control.
+- Outputs `14`, `15`, and `16` provide the volume data generator, index tuning
+  report, and analytical reporting SQL.
 
-When the group starts Phase 1, task owners will fill in their placeholder command/skill files and follow this workflow:
+The OpenCode workflow now uses task-specific command and skill files under
+`.opencode/commands/` and `.opencode/skills/db-design-pipeline/`. Tasks 14,
+15, and 16 each have their own command and skill:
 
-1. **Generate** the 7 Phase 1 outputs.
-2. **Review / refine** outputs.
-3. **Validate** the output set (`scripts/check_required_files.sh --final G08`, `scripts/validate_sql.sh --final G08`).
-4. **Run SQL Server validation/testing** when the outputs exist, on a SQL Server-compatible environment.
-5. **Record audits** for every meaningful change.
+- `/14-generate-data-generator` with
+  `.opencode/skills/db-design-pipeline/14-data-generator/SKILL.md`
+- `/15-generate-index-tuning-report` with
+  `.opencode/skills/db-design-pipeline/15-index-tuning-report/SKILL.md`
+- `/16-generate-analytical-queries` with
+  `.opencode/skills/db-design-pipeline/16-analytical-queries/SKILL.md`
+
+No frontend, backend, or deployment work is part of Phase 1 or Phase 2.
+
+## Phase workflow
+
+For every generated, refined, or validated deliverable:
+
+1. Read the official project PDF and the immediate previous output first.
+2. Generate or refine only the target deliverable.
+3. Validate with SQL Server-compatible tooling when SQL execution is required.
+4. Record an audit under `docs/audits/` for every meaningful repository change.
 
 ## Locations
 
