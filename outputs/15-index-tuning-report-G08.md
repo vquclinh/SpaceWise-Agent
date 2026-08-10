@@ -22,8 +22,8 @@ alerts.
 ## 2. Execution Evidence Status
 
 SQL Server execution was not available in the current editing environment: no
-`sqlcmd` client was installed, and repository validation scripts are currently
-deleted in the worktree. Because of that, this report does **not** invent
+`sqlcmd` client was installed, and the repository validation scripts were not
+present in this checkout. Because of that, this report does **not** invent
 logical-read counts or elapsed timings.
 
 The benchmark protocol below is exact and ready to run in SSMS or Azure Data
@@ -266,4 +266,3 @@ The required tuning strategy is:
 
 Actual timings must be captured in a SQL Server environment before the final PDF
 report is submitted.
-

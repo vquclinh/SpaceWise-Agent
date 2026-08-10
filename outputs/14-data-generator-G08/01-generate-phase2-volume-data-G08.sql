@@ -463,7 +463,9 @@ BEGIN
         SELECT generated_seq, space_id, requested_start_time, requested_end_time,
                ROW_NUMBER() OVER (ORDER BY generated_seq) AS rn
         FROM #booking_stage
-        WHERE generated_seq % 500 = 0
+        -- Keep this divisor independent of the status distribution; using 500
+        -- would only select rows already classified as Cancelled.
+        WHERE generated_seq % 7 = 0
           AND final_status IN (N'Approved', N'CheckedIn', N'Completed', N'NoShow')
     )
     INSERT INTO dbo.maintenance_records
@@ -567,7 +569,8 @@ INSERT INTO dbo.booking_decisions
        rejection_reason, decision_source)
 SELECT ib.booking_id,
        CASE WHEN ib.final_status IN (N'Approved', N'CheckedIn', N'Completed', N'NoShow')
-              AND ib.space_type IN (N'MeetingRoom', N'StudentWorkspace')
+              AND ((ib.space_type = N'MeetingRoom'      AND ib.expected_participants <= 24)
+                OR (ib.space_type = N'StudentWorkspace' AND ib.expected_participants <= 20))
               AND ib.booking_type IN (N'Meeting', N'StudentActivity', N'Workshop', N'ProjectWork')
               AND ib.generated_seq % 3 = 0
             THEN NULL
@@ -581,7 +584,8 @@ SELECT ib.booking_id,
             THEN N'Generated rejection: policy or schedule mismatch.'
             ELSE NULL END,
        CASE WHEN ib.final_status IN (N'Approved', N'CheckedIn', N'Completed', N'NoShow')
-              AND ib.space_type IN (N'MeetingRoom', N'StudentWorkspace')
+              AND ((ib.space_type = N'MeetingRoom'      AND ib.expected_participants <= 24)
+                OR (ib.space_type = N'StudentWorkspace' AND ib.expected_participants <= 20))
               AND ib.booking_type IN (N'Meeting', N'StudentActivity', N'Workshop', N'ProjectWork')
               AND ib.generated_seq % 3 = 0
             THEN N'System'
@@ -784,4 +788,3 @@ WHERE ba.alert_type = N'MaintenanceEscalated'
   AND m.problem_description LIKE N'P2 generated escalation scenario #%';
 
 PRINT N'Run 02-validate-phase2-volume-data-G08.sql next.';
-

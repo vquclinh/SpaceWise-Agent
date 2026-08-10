@@ -38,10 +38,10 @@ SET IMPLICIT_TRANSACTIONS OFF;
 
 /* ---------------------------------------------------------------------
        0. ENABLE RCSI (READ COMMITTED SNAPSHOT ISOLATION)
-          Bật RCSI để cho phép kịch bản test Baseline (Part A) chạy song song 
-          và đọc dữ liệu cũ thay vì bị khóa (freeze). Điều này giúp mô phỏng 
-          chính xác lỗ hổng Check-Then-Act của Giai đoạn 1.
-          Lệnh này bắt buộc phải chạy bên ngoài BEGIN TRANSACTION.
+          Enable RCSI so the baseline Part A scripts can run concurrently and
+          read the previous committed version instead of blocking. This models
+          the Phase 1 check-then-act flaw accurately.
+          This command must run outside BEGIN TRANSACTION.
        --------------------------------------------------------------------- */
     IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()) = 0
     BEGIN

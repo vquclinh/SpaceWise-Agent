@@ -64,7 +64,7 @@ For every generated, refined, or validated deliverable:
 
 ## Locations
 
-- **Outputs:** `outputs/` (the 7 Phase 1 deliverables, named with `G08`).
+- **Outputs:** `outputs/` (Phase 1 deliverables `01`–`07` and Phase 2 deliverables `08`–`16`, named with `G08`).
 - **Audits:** `docs/audits/` (one per meaningful AI-assisted change, following `docs/audits/AUDIT_TEMPLATE.md`).
 
 ## Why audits matter
