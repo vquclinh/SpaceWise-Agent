@@ -73,6 +73,44 @@ WHERE purpose LIKE N'P2 volume workload #%';
 
 IF @existing_generated >= @target_bookings
 BEGIN
+    IF NOT EXISTS (
+           SELECT 1 FROM dbo.bookings
+           WHERE purpose LIKE N'P2 volume workload #%' AND status = N'Cancelled'
+       )
+       OR NOT EXISTS (
+           SELECT 1 FROM dbo.bookings
+           WHERE purpose LIKE N'P2 volume workload #%' AND status = N'NoShow'
+       )
+       OR NOT EXISTS (
+           SELECT 1
+           FROM dbo.booking_decisions bd
+           JOIN dbo.bookings b ON b.booking_id = bd.booking_id
+           WHERE b.purpose LIKE N'P2 volume workload #%'
+             AND bd.decision_source = N'System'
+       )
+       OR NOT EXISTS (
+           SELECT 1
+           FROM dbo.maintenance_records
+           WHERE problem_description LIKE N'P2 generated advisory window #%'
+             AND impact_level = N'Advisory'
+       )
+       OR NOT EXISTS (
+           SELECT 1
+           FROM dbo.booking_advisory_acknowledgments a
+           JOIN dbo.bookings b ON b.booking_id = a.booking_id
+           WHERE b.purpose LIKE N'P2 volume workload #%'
+       )
+       OR NOT EXISTS (
+           SELECT 1
+           FROM dbo.booking_alerts ba
+           JOIN dbo.maintenance_records m ON m.maintenance_id = ba.maintenance_id
+           WHERE ba.alert_type = N'MaintenanceEscalated'
+             AND m.problem_description LIKE N'P2 generated escalation scenario #%'
+       )
+    BEGIN
+        THROW 52012, N'Generated booking rows exist, but required Phase 2 dependent workload rows are incomplete. Restore a clean benchmark database before regenerating.', 1;
+    END;
+
     PRINT N'Generated workload already exists. No rows were changed.';
     SELECT N'generated bookings already present' AS metric, @existing_generated AS value
     UNION ALL
