@@ -8,7 +8,7 @@ GO
 DROP INDEX IF EXISTS IX_bookings_space_status_time ON dbo.bookings;
 GO
 
---- 
+----
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
 GO
@@ -31,7 +31,6 @@ AND b.status IN (N'Approved', N'CheckedIn')
 AND b.requested_start_time < @new_end_time
 AND b.requested_end_time > @new_start_time;
 GO
----
 
 CREATE INDEX IX_bookings_space_status_time
 ON dbo.bookings (space_id, requested_start_time, requested_end_time)

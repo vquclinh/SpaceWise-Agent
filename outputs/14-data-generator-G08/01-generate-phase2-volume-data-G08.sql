@@ -164,7 +164,7 @@ INSERT INTO dbo.user_accounts
 SELECT N'g08.p2.user' + RIGHT(N'000' + CONVERT(NVARCHAR(10), rn), 3) + N'@university.edu.vn',
        N'G08 Phase 2 User ' + RIGHT(N'000' + CONVERT(NVARCHAR(10), rn), 3),
        N'0998' + RIGHT(N'000000' + CONVERT(NVARCHAR(10), rn), 6),
-       CASE WHEN rn % 41 = 0 THEN N'Suspended'
+       CASE WHEN rn % 41 = 0 THEN N'Suspended' --- account status
             WHEN rn % 29 = 0 THEN N'Inactive'
             ELSE N'Active' END,
        @generated_department_id,
@@ -183,9 +183,9 @@ WHERE NOT EXISTS (
     FROM dbo.user_accounts ua
     WHERE ua.email LIKE N'g08.p2.user%@university.edu.vn'
 )
-INSERT INTO dbo.user_roles (user_id, role)
+INSERT INTO dbo.user_roles (un % 41 = 0 ser_id, role)
 SELECT user_id,
-       CASE WHEN rn % 24 = 0 THEN N'FacilityManager'
+       CASE WHEN rn % 24 = 0 THEN N'FacilityManager' ---- user's main role
             WHEN rn % 12 = 0 THEN N'FacilityStaff'
             WHEN rn % 10 = 0 THEN N'DepartmentAdministrator'
             WHEN rn % 5  = 0 THEN N'Lecturer'
@@ -211,7 +211,7 @@ WHERE NOT EXISTS (
     FROM dbo.user_accounts ua
     WHERE ua.email LIKE N'g08.p2.user%@university.edu.vn'
 )
-INSERT INTO dbo.user_roles (user_id, role)
+INSERT INTO dbo.user_roles (user_id, role)  --- add role student
 SELECT user_id, N'Student'
 FROM generated_users gu
 WHERE rn % 31 = 0
@@ -257,7 +257,7 @@ IF @staff_id IS NULL
 typed AS (
     SELECT rn,
            CASE (rn - 1) % 6
-                WHEN 0 THEN N'Classroom'
+                WHEN 0 THEN N'Classroom'   ---- spaces
                 WHEN 1 THEN N'ComputerLaboratory'
                 WHEN 2 THEN N'MeetingRoom'
                 WHEN 3 THEN N'Auditorium'
@@ -272,11 +272,11 @@ INSERT INTO dbo.spaces
 SELECT N'G08-P2-' + RIGHT(N'000' + CONVERT(NVARCHAR(10), rn), 3),
        N'G08 Phase 2 Benchmark Space ' + RIGHT(N'000' + CONVERT(NVARCHAR(10), rn), 3),
        space_type,
-       N'Benchmark Building ' + CHAR(65 + ((rn - 1) % 6)),
-       1 + ((rn - 1) % 5),
+       N'Benchmark Building ' + CHAR(65 + ((rn - 1) % 6)),  ---- from A to F
+       1 + ((rn - 1) % 5),  ---- from 1 to 5
        N'P2-' + RIGHT(N'000' + CONVERT(NVARCHAR(10), rn), 3),
        CASE space_type
-            WHEN N'Auditorium'          THEN 160 + (rn % 40)
+            WHEN N'Auditorium'          THEN 160 + (rn % 40)   ---- space type
             WHEN N'ComputerLaboratory'  THEN 30 + (rn % 15)
             WHEN N'ProjectLaboratory'   THEN 24 + (rn % 12)
             WHEN N'MeetingRoom'         THEN 12 + (rn % 18)
@@ -315,7 +315,7 @@ IF @space_count < @target_spaces
            gs.space_code,
            v.facility_name,
            v.unit_count
-    FROM #generated_spaces gs
+    FROM #generated_spaces gs  ---- facility asset
     CROSS APPLY (VALUES
         (N'Projector',
             CASE WHEN gs.space_type IN (N'Classroom', N'MeetingRoom', N'Auditorium', N'ProjectLaboratory')
@@ -449,7 +449,7 @@ base AS (
            req.user_id AS requester_id,
            (nums.rn - 1) / @space_count AS slot_index
     FROM nums
-    JOIN #generated_spaces gs
+    JOIN #generated_spaces gs   ---- spaces/booking
       ON gs.space_ord = ((nums.rn - 1) % @space_count) + 1
     JOIN #requesters req
       ON req.requester_ord = ((nums.rn - 1) % @requester_count) + 1
@@ -460,7 +460,7 @@ SELECT b.generated_seq,
        b.space_code,
        b.space_type,
        b.capacity,
-       DATEADD(HOUR, 8 + (2 * (b.slot_index % 7)),
+       DATEADD(HOUR, 8 + (2 * (b.slot_index % 7)),   --- booking
            DATEADD(DAY, (b.slot_index * 37) % @total_days, @academic_start_dt)) AS requested_start_time,
        DATEADD(HOUR, 10 + (2 * (b.slot_index % 7)),
            DATEADD(DAY, (b.slot_index * 37) % @total_days, @academic_start_dt)) AS requested_end_time,
@@ -474,9 +474,9 @@ SELECT b.generated_seq,
             WHEN 6 THEN N'AdministrativeEvent'
             WHEN 7 THEN N'ResearchActivity'
             ELSE N'ProjectWork' END AS booking_type,
-       CASE WHEN b.capacity <= 5 THEN b.capacity
+       CASE WHEN b.capacity <= 5 THEN b.capacity  --- capacity
             ELSE 5 + (b.generated_seq % (b.capacity - 4)) END AS expected_participants,
-       CASE WHEN b.generated_seq % 20 = 0 THEN N'Cancelled'
+       CASE WHEN b.generated_seq % 20 = 0 THEN N'Cancelled'  --- booking status
             WHEN b.generated_seq % 25 = 0 THEN N'NoShow'
             WHEN b.generated_seq % 13 = 0 THEN N'Rejected'
             WHEN b.generated_seq % 17 = 0 THEN N'Pending'
