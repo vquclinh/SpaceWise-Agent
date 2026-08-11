@@ -4,6 +4,8 @@
    Purpose  : Validate the generated workload from
               01-generate-phase2-volume-data-G08.sql.
    =========================================================================== */
+USE SpaceWiseP2Demo
+GO
 
 SET NOCOUNT ON;
 

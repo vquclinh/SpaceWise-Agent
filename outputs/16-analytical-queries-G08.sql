@@ -19,6 +19,8 @@
       Completed rows use actual usage-session timestamps when present.
       Approved/CheckedIn rows use the reserved requested interval.
    =========================================================================== */
+USE SpaceWiseP2Demo
+GO
 
 SET NOCOUNT ON;
 

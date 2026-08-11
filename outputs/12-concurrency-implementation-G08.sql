@@ -104,6 +104,9 @@
    Terminal errors: 50001 (overlap), 50002 (OutOfService),
                      50003 (space closed), 50004 (wrong state), 50007, 50009.
    =========================================================================== */
+USE SpaceWiseP2Demo
+GO
+
 CREATE OR ALTER PROCEDURE dbo.usp_ApproveBooking
     @booking_id     INT,
     @staff_id       INT,

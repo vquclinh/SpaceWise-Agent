@@ -65,6 +65,9 @@
 --   Q5 (Fill rate): 5 completed bookings across 4 spaces                  → 4 rows
 -- =============================================================================
 
+USE SpaceWiseP2Demo
+GO
+
 BEGIN TRANSACTION;
 SET NOCOUNT ON;
 

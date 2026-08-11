@@ -31,7 +31,7 @@
    dropped. The generated data uses the 'T13-' purpose prefix so the race
    files can select exactly the rows owned by the test harness.
    =========================================================================== */
-
+use SpaceWiseP2Demo
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 SET IMPLICIT_TRANSACTIONS OFF;

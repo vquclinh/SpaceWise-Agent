@@ -13,6 +13,43 @@
 -- =============================================================================
 -- 1. TABLE: departments
 -- =============================================================================
+USE master;
+  GO
+
+  IF DB_ID(N'University') IS NOT NULL
+  BEGIN
+      ALTER DATABASE [University] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+      DROP DATABASE [University];
+  END;
+  GO
+
+  IF DB_ID(N'SpaceWiseP2Demo') IS NOT NULL
+  BEGIN
+      ALTER DATABASE [SpaceWiseP2Demo] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+      DROP DATABASE [SpaceWiseP2Demo];
+  END;
+  GO
+
+  IF DB_ID(N'SpaceWiseP2Demo2') IS NOT NULL
+  BEGIN
+      ALTER DATABASE [SpaceWiseP2Demo2] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+      DROP DATABASE [SpaceWiseP2Demo2];
+  END;
+  GO
+
+  IF DB_ID(N'SpaceWiseP2DemoFresh') IS NOT NULL
+  BEGIN
+      ALTER DATABASE [SpaceWiseP2DemoFresh] SET SINGLE_USER WITH ROLLBACK
+      IMMEDIATE;
+      DROP DATABASE [SpaceWiseP2DemoFresh];
+  END;
+  GO
+
+  CREATE DATABASE SpaceWiseP2Demo;
+  GO
+
+USE SpaceWiseP2Demo
+GO
 
 CREATE TABLE departments (
     department_id   INT           NOT NULL IDENTITY(1,1),

@@ -23,6 +23,8 @@
       - Re-run safe only after a complete prior run. Partial generated data
         fails loudly so staff can restore a clean benchmark database.
    =========================================================================== */
+USE SpaceWiseP2Demo
+GO
 
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -50,6 +52,7 @@ PRINT N'============================================================';
 IF @@TRANCOUNT > 0
     THROW 52000, N'Run this generator in a session with no open transaction.', 1;
 
+---
 IF OBJECT_ID(N'dbo.facility_assets', N'U') IS NULL
    OR OBJECT_ID(N'dbo.space_facility_requirements', N'U') IS NULL
    OR OBJECT_ID(N'dbo.user_roles', N'U') IS NULL
@@ -66,6 +69,7 @@ IF OBJECT_ID(N'dbo.facilities', N'U') IS NOT NULL
 BEGIN
     THROW 52002, N'Phase 2 baseline amendments are not applied. Run the current Output 10 migration first.', 1;
 END;
+---
 
 SELECT @existing_generated = COUNT(*)
 FROM dbo.bookings
@@ -149,7 +153,7 @@ SELECT TOP (1) @generated_department_id = department_id
 FROM dbo.departments
 WHERE department_name = N'G08 Phase 2 Benchmark Department'
 ORDER BY department_id;
-
+----------
 ;WITH n AS (
     SELECT TOP (@target_users)
            ROW_NUMBER() OVER (ORDER BY a.object_id) AS rn
@@ -172,7 +176,7 @@ WHERE NOT EXISTS (
     FROM dbo.user_accounts ua
     WHERE ua.email = N'g08.p2.user' + RIGHT(N'000' + CONVERT(NVARCHAR(10), rn), 3) + N'@university.edu.vn'
 );
-
+----------
 ;WITH generated_users AS (
     SELECT ua.user_id,
            ROW_NUMBER() OVER (ORDER BY ua.email) AS rn
@@ -230,7 +234,7 @@ WHERE rn % 37 = 0
       SELECT 1 FROM dbo.user_roles ur
       WHERE ur.user_id = gu.user_id AND ur.role = N'FacilityStaff'
   );
-
+----------
 SELECT TOP (1) @staff_id = ua.user_id
 FROM dbo.user_accounts ua
 JOIN dbo.user_roles ur ON ur.user_id = ua.user_id
@@ -305,6 +309,7 @@ SELECT @space_count = COUNT(*) FROM #generated_spaces;
 IF @space_count < @target_spaces
     THROW 52005, N'Generated space count is below target.', 1;
 
+-----------
 ;WITH facility_plan AS (
     SELECT gs.space_id,
            gs.space_code,
@@ -403,7 +408,6 @@ WHERE p.space_type IN (N'MeetingRoom', N'StudentWorkspace')
 /* ---------------------------------------------------------------------------
    3. Booking staging table
    --------------------------------------------------------------------------- */
-
 IF OBJECT_ID(N'tempdb..#requesters') IS NOT NULL DROP TABLE #requesters;
 
 ;WITH requesters AS (

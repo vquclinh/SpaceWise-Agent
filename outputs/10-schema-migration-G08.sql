@@ -116,6 +116,8 @@
    Expect: a PRINT log per step, then a summary table. On any error: one
    error message, a full rollback, and a database still on Phase 1.
    =========================================================================== */
+USE SpaceWiseP2Demo
+GO
 
 SET NOCOUNT ON;
 SET XACT_ABORT ON;

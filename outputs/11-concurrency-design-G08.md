@@ -87,7 +87,9 @@ A booking `X` is being approved for `space S` while facility staff simultaneousl
 The two workflows therefore acquire locks on shared tables in **opposite orders**:
 
 ```text
-approval:   bookings  →  maintenance_records
+approval:   bookings  → 
+10:47:46 AM
+Started executing query at  ￼Line 34 maintenance_records
 escalation: maintenance_records  →  bookings / booking_alerts
 ```
 
